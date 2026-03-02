@@ -1,45 +1,19 @@
-# project_template
+# Interim Report Rubric
 
-<a target="_blank" href="https://cookiecutter-data-science.drivendata.org/">
-    <img src="https://img.shields.io/badge/CCDS-Project%20template-328F97?logo=cookiecutter" />
-</a>
+Intermediate work for a written report in the style of a ML conference workshop paper (4-8 pages), includes a github repo demonstrating code work.
 
-# TODO
- - [ ] Structure src better.
- - [ ] Add ruff/linter settings.
- - [ ] Improve org data.
- - [ ] Autorunning test.
+Aim for two figures, 4 pages. Less is more.
 
-A short description of the project.
+Expected format is based on NeuRIPS 2024 paper template,Links to an external site. Overleaf templateLinks to an external site..
 
-## Project Organization
+Formatting instructions: Paper submissions must be in PDF format, and in a single PDF file include, in this order:
 
-```
-├── LICENSE            <- MIT license likely.
-├── README.md          <- The top-level README for developers using this project.
-├── pyproject.toml     <- Project configuration file with package metadata for
-│                         project_template and configuration for tools like black
-├── data
-│   ├── external       <- Data from third party sources.
-│   ├── interim        <- Intermediate data that has been transformed.
-│   ├── processed      <- The final, canonical data sets for modeling.
-│   └── raw            <- The original, immutable data dump.
-│
-├── Models          <- Store models
-├── notebooks          <- Jupyter notebooks.
-├── scripts            <- Python scripts to run, should generate results/figures.
-│
-├── results            <- Generated analysis as HTML, PDF, LaTeX, etc.
-│   └── figures        <- Generated graphics and figures to be used in reporting
-│
-│
-└── src   <- Source code, library-like code, for use in this project.
-    │
-    ├── __init__.py             <- Makes project_template a Python module
-    │
-    ├── paths_and_constants.py  <- Store paths and constants
-    │
-    └── utils.py                <- Utility code that does not fit other files.
-```
+The submitted paper
+Statement if you are changing the scope of your proposal and why.  
+Technical appendices that support the paper with additional proofs, derivations, or results. (if you have any)
+The NeurIPS paper checklist.
+The main text and references may be followed by technical appendices, for which there is no page limit.
 
----
+Paper checklist: In order to improve the rigor and transparency of research submitted, authors are required to complete a paper checklistLinks to an external site.. The paper checklist is intended to help authors reflect on a wide variety of issues relating to responsible machine learning research, including reproducibility, transparency, research ethics, and societal impact. The checklist forms part of the paper submission, but does not count towards the page limit.
+
+Github repo: Start a github main page, PEP8 format your code, make sure it pass VS Code/PyCharm's warnings, organize it nicely, commit regularly, even if little.

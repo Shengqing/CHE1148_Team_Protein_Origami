@@ -1,0 +1,22 @@
+data:
+  train_path: "tsuboyama_processed_train_full.csv"
+  val_path: "tsuboyama_processed_val_full.csv"
+  output_dir: "results"
+  max_len_quantile: 0.995
+  max_len_cap: 256
+  max_len_override: 72
+
+model:
+  emb_dim: 64
+  hidden_dim: 256
+  dropout: 0.2
+
+train:
+  batch_size: 512
+  epochs: 10
+  lr: 0.002
+  weight_decay: 0.0001
+  clip_grad_norm: 1.0
+  patience: 2
+  factor: 0.5
+  seed: 42
