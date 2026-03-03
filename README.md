@@ -2,7 +2,7 @@
 
 This repository contains the code used for the CHE1148 Protein Origami project on learning protein stability landscapes from sequence, with an emphasis on **experimentally measured folding free energy** ($\Delta G$). The workflow combines data curation, exploratory analysis, discriminative baselines, ESM2 embedding pipelines, graph-based models, and generative evaluation utilities.
 
-The accompanying project report is available as `Interim_Final_ProteinOrigami.pdf` in the repo root (for reading context only; no need to include it in code commits).
+The accompanying project report is available as `Interim_Final_ProteinOrigami.pdf` submitted through the Quercus. 
 
 ## 1) Project Summary
 
@@ -10,7 +10,7 @@ The accompanying project report is available as `Interim_Final_ProteinOrigami.pd
 Protein structure predictors can produce plausible structures in silico while still failing thermodynamic stability in vitro. This project focuses on learning a direct mapping from sequence to measured stability and using that signal to guide mutation proposals.
 
 ### Dataset
-- Source: `Tsuboyama2023_DS2and3_20230416_ColFiltered.csv` (raw)
+- Source: `Tsuboyama2023_DS2and3_20230416_ColFiltered.csv` (raw) - 238MB (so not uploaded to Git)
 - Scale: ~776k experimental records in the raw table
 - Curated scope used here:
 	- replicate collapsing and WT mapping by cluster
@@ -176,29 +176,14 @@ Current notebook implementation:
 
 Note: this prototype is notebook-first and not yet packaged as a production CLI under `src/`.
 
-## 6) Representative Validation Results
-
-From the current result artifacts:
-
-- **GraphNet baseline** (`results/graphnet/metrics.json`):
-	- MAE 1.0419, RMSE 1.5477, $R^2$ 0.3704, Pearson 0.6799, Spearman 0.6685
-- **ESM2 pooled + MLP (60k train)** (`results/esm2_650m/metrics.json`):
-	- MAE 0.9055, RMSE 1.3087, $R^2$ 0.5499, Pearson 0.7804, Spearman 0.7581
-- **ESM2 pooled + MLP (full train)** (`results/esm2_650m_train_full/metrics.json`):
-	- MAE 0.7596, RMSE 1.1113, $R^2$ 0.6754, Pearson 0.8375, Spearman 0.8050
-- **ESM linear GraphNet (60k)** (`results/esm_graph_60k/metrics.json`, val metrics):
-	- MAE 0.8729, RMSE 1.3002, $R^2$ 0.5557, Pearson 0.7860, Spearman 0.7367
-
-These trends support the report-level conclusion that ESM-based representations significantly improve predictive stability modeling over sequence-only baselines.
-
-## 7) Reproducibility Notes
+## 6) Reproducibility Notes
 
 - Most training scripts fix random seed (`42`) by default.
 - Train/dev split is cluster-stratified; validation is pre-generated in processed CSV files.
 - Metrics are logged as JSON under each experiment folder in `results/`.
 - Lint/format is configured through Ruff in `pyproject.toml`.
 
-## 8) Limitations and Active Directions
+## 7) Limitations and Active Directions
 
 Aligned with the final report and current code status:
 - Current primary training scope is single-point mutation curation.
@@ -207,10 +192,10 @@ Aligned with the final report and current code status:
 - VAE work is currently notebook-based and not yet fully integrated into the `src/` training stack.
 - Generative evaluation is retrieval-oriented; sequence-native generation remains an active target.
 
-## 9) Citation
+## 8) Citation
 
 If you use this repository, please cite the project report and the Tsuboyama et al. dataset paper.
 
 ---
 
-For manuscript context and experimental framing, see `Interim_Final_ProteinOrigami.pdf`.
+For manuscript context and experimental framing, see `Interim_Final_ProteinOrigami.pdf` on Quercus.
