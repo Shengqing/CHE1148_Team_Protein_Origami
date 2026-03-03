@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 import argparse
 import csv
+from dataclasses import dataclass
 import json
 import logging
-import random
-from dataclasses import dataclass
 from pathlib import Path
+import random
 from typing import Dict, List, Optional, Sequence, Tuple
 
 import torch
@@ -16,7 +16,7 @@ try:
     import numpy as np
 
     HAS_NUMPY = True
-except Exception:
+except ImportError:
     HAS_NUMPY = False
 
 MUT_PAT = __import__("re").compile(r"^([A-Z\*])(\d+)([A-Z\*])$")
@@ -63,7 +63,13 @@ class MLPRegressor(nn.Module):
 
 
 class ESM2Embedder:
-    def __init__(self, model_name: str, device: torch.device, cache_dir: Optional[Path], logger: logging.Logger):
+    def __init__(
+        self,
+        model_name: str,
+        device: torch.device,
+        cache_dir: Optional[Path],
+        logger: logging.Logger,
+    ):
         try:
             from transformers import AutoModel, AutoTokenizer
         except Exception as exc:
@@ -157,7 +163,9 @@ def read_records(path: Path, max_rows: Optional[int] = None) -> List[Record]:
     return out
 
 
-def split_train_dev_indices(records: List[Record], dev_frac: float, seed: int) -> Tuple[List[int], List[int]]:
+def split_train_dev_indices(
+    records: List[Record], dev_frac: float, seed: int
+) -> Tuple[List[int], List[int]]:
     rnd = random.Random(seed)
     by_cluster: Dict[str, List[int]] = {}
     for idx, rec in enumerate(records):
@@ -316,7 +324,13 @@ def load_embedding_payload(path: Path) -> dict:
     return torch.load(path, map_location="cpu")
 
 
-def eval_regression(model: nn.Module, loader: DataLoader, device: torch.device, return_arrays: bool = False):
+def eval_regression(
+    model: nn.Module,
+    loader: DataLoader,
+    device: torch.device,
+    *,
+    return_arrays: bool = False,
+):
     model.eval()
     ys, preds = [], []
     with torch.no_grad():
@@ -361,7 +375,9 @@ def train_one_epoch(model, loader, optimizer, device):
     return total_loss / max(n_items, 1)
 
 
-def make_predict_fn(model: nn.Module, embedder: ESM2Embedder, device: torch.device, batch_size: int):
+def make_predict_fn(
+    model: nn.Module, embedder: ESM2Embedder, device: torch.device, batch_size: int
+):
     def _predict(seqs: Sequence[str]) -> List[float]:
         if len(seqs) == 0:
             return []
@@ -370,7 +386,9 @@ def make_predict_fn(model: nn.Module, embedder: ESM2Embedder, device: torch.devi
         with torch.no_grad():
             for i in range(0, len(seqs), batch_size):
                 batch = seqs[i : i + batch_size]
-                x = embedder.embed_sequences_pooled(batch, batch_size=min(batch_size, 32)).to(device)
+                x = embedder.embed_sequences_pooled(batch, batch_size=min(batch_size, 32)).to(
+                    device
+                )
                 pred = model(x).detach().cpu().tolist()
                 out_all.extend(pred)
         return out_all
@@ -559,11 +577,17 @@ def evaluate_generated_vs_observed(
             "unmatched_n": unmatched_n,
             "unmatched_above_obs_max_n": int(vals["unmatched_above_obs_max_n"]),
             "unmatched_below_obs_min_n": int(vals["unmatched_below_obs_min_n"]),
-            "pct_unmatched_above_obs_max": 100.0 * vals["unmatched_above_obs_max_n"] / max(unmatched_n, 1),
-            "pct_unmatched_below_obs_min": 100.0 * vals["unmatched_below_obs_min_n"] / max(unmatched_n, 1),
+            "pct_unmatched_above_obs_max": 100.0
+            * vals["unmatched_above_obs_max_n"]
+            / max(unmatched_n, 1),
+            "pct_unmatched_below_obs_min": 100.0
+            * vals["unmatched_below_obs_min_n"]
+            / max(unmatched_n, 1),
         }
 
-    exhaustive_matched_metrics = regression_metrics_from_lists(exhaustive_matched_true, exhaustive_matched_pred)
+    exhaustive_matched_metrics = regression_metrics_from_lists(
+        exhaustive_matched_true, exhaustive_matched_pred
+    )
 
     summary = {
         "n_validation_rows": len(val_records),
@@ -589,11 +613,19 @@ def evaluate_generated_vs_observed(
             "ood_cluster_breakdown": {
                 "71": top3_by_cluster_pct.get(
                     "71",
-                    {"n_proteins": 0, "n_with_top3_lower_than_wt": 0, "pct_with_top3_lower_than_wt": 0.0},
+                    {
+                        "n_proteins": 0,
+                        "n_with_top3_lower_than_wt": 0,
+                        "pct_with_top3_lower_than_wt": 0.0,
+                    },
                 ),
                 "213": top3_by_cluster_pct.get(
                     "213",
-                    {"n_proteins": 0, "n_with_top3_lower_than_wt": 0, "pct_with_top3_lower_than_wt": 0.0},
+                    {
+                        "n_proteins": 0,
+                        "n_with_top3_lower_than_wt": 0,
+                        "pct_with_top3_lower_than_wt": 0.0,
+                    },
                 ),
             },
         },
@@ -603,10 +635,16 @@ def evaluate_generated_vs_observed(
                 "unmatched_n": exhaustive_unmatched_total,
                 "unmatched_above_observed_max_n": exhaustive_unmatched_above_obs_max,
                 "unmatched_below_observed_min_n": exhaustive_unmatched_below_obs_min,
-                "pct_unmatched_above_observed_max": 100.0 * exhaustive_unmatched_above_obs_max / max(exhaustive_unmatched_total, 1),
-                "pct_unmatched_below_observed_min": 100.0 * exhaustive_unmatched_below_obs_min / max(exhaustive_unmatched_total, 1),
+                "pct_unmatched_above_observed_max": 100.0
+                * exhaustive_unmatched_above_obs_max
+                / max(exhaustive_unmatched_total, 1),
+                "pct_unmatched_below_observed_min": 100.0
+                * exhaustive_unmatched_below_obs_min
+                / max(exhaustive_unmatched_total, 1),
             },
-            "by_cluster": dict(sorted(exhaustive_by_cluster_summary.items(), key=cluster_sort_key)),
+            "by_cluster": dict(
+                sorted(exhaustive_by_cluster_summary.items(), key=cluster_sort_key)
+            ),
             "ood_cluster_breakdown": {
                 "71": exhaustive_by_cluster_summary.get(
                     "71",
@@ -643,10 +681,18 @@ def evaluate_generated_vs_observed(
         },
         "matched_variant_quality": {
             "n_matched": len(matched_true_delta_g),
-            "mean_true_deltaG": (sum(matched_true_delta_g) / len(matched_true_delta_g)) if matched_true_delta_g else None,
-            "median_true_rank": (float(np.median(np.array(matched_true_rank))) if matched_true_rank and HAS_NUMPY else None),
+            "mean_true_deltaG": (sum(matched_true_delta_g) / len(matched_true_delta_g))
+            if matched_true_delta_g
+            else None,
+            "median_true_rank": (
+                float(np.median(np.array(matched_true_rank)))
+                if matched_true_rank and HAS_NUMPY
+                else None
+            ),
             "median_true_rank_percentile": (
-                float(np.median(np.array(matched_true_rank_pct))) if matched_true_rank_pct and HAS_NUMPY else None
+                float(np.median(np.array(matched_true_rank_pct)))
+                if matched_true_rank_pct and HAS_NUMPY
+                else None
             ),
         },
         "hit_curve": hit_curve,
@@ -705,11 +751,38 @@ def compare_with_baseline(baseline_metrics_path: Path, current_val_metrics: dict
 
 def main():
     parser = argparse.ArgumentParser(description="Train ESM2-650M regressor for Protein Origami")
-    parser.add_argument("--train_csv", type=Path, default=Path("/home/uoftshen/scratch/CHE1148_Team_Protein_Origami/data/processed/tsuboyama_processed_train_sampled.csv"))
-    parser.add_argument("--val_csv", type=Path, default=Path("/home/uoftshen/scratch/CHE1148_Team_Protein_Origami/data/processed/tsuboyama_processed_val_full.csv"))
-    parser.add_argument("--out_dir", type=Path, default=Path("/home/uoftshen/scratch/CHE1148_Team_Protein_Origami/results/esm2_650m"))
-    parser.add_argument("--embedding_dir", type=Path, default=Path("/home/uoftshen/scratch/CHE1148_Team_Protein_Origami/results/esm2_650m/embeddings"))
-    parser.add_argument("--mode", type=str, choices=["train_eval", "eval_only", "precompute_only"], default="train_eval")
+    parser.add_argument(
+        "--train_csv",
+        type=Path,
+        default=Path(
+            "/home/uoftshen/scratch/CHE1148_Team_Protein_Origami/data/processed/tsuboyama_processed_train_sampled.csv"
+        ),
+    )
+    parser.add_argument(
+        "--val_csv",
+        type=Path,
+        default=Path(
+            "/home/uoftshen/scratch/CHE1148_Team_Protein_Origami/data/processed/tsuboyama_processed_val_full.csv"
+        ),
+    )
+    parser.add_argument(
+        "--out_dir",
+        type=Path,
+        default=Path("/home/uoftshen/scratch/CHE1148_Team_Protein_Origami/results/esm2_650m"),
+    )
+    parser.add_argument(
+        "--embedding_dir",
+        type=Path,
+        default=Path(
+            "/home/uoftshen/scratch/CHE1148_Team_Protein_Origami/results/esm2_650m/embeddings"
+        ),
+    )
+    parser.add_argument(
+        "--mode",
+        type=str,
+        choices=["train_eval", "eval_only", "precompute_only"],
+        default="train_eval",
+    )
     parser.add_argument("--model_path", type=Path, default=None)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--epochs", type=int, default=15)
@@ -740,7 +813,12 @@ def main():
     train_embed_path = args.train_embed_path or (args.embedding_dir / "train_sampled_esm2_650m.pt")
     val_embed_path = args.val_embed_path or (args.embedding_dir / "val_full_esm2_650m.pt")
 
-    need_precompute = args.prepare_embeddings or not train_embed_path.exists() or not val_embed_path.exists() or args.mode == "precompute_only"
+    need_precompute = (
+        args.prepare_embeddings
+        or not train_embed_path.exists()
+        or not val_embed_path.exists()
+        or args.mode == "precompute_only"
+    )
     train_records = None
     val_records = None
     embedder = None
@@ -748,8 +826,12 @@ def main():
     if need_precompute:
         train_records = read_records(args.train_csv, max_rows=args.max_rows_train)
         val_records = read_records(args.val_csv, max_rows=args.max_rows_val)
-        embedder = ESM2Embedder(args.esm_model_name, device=device, cache_dir=args.esm_cache_dir, logger=logger)
-        precompute_embeddings(embedder, train_records, train_embed_path, args.embed_batch_size, logger)
+        embedder = ESM2Embedder(
+            args.esm_model_name, device=device, cache_dir=args.esm_cache_dir, logger=logger
+        )
+        precompute_embeddings(
+            embedder, train_records, train_embed_path, args.embed_batch_size, logger
+        )
         precompute_embeddings(embedder, val_records, val_embed_path, args.embed_batch_size, logger)
 
     if args.mode == "precompute_only":
@@ -795,7 +877,9 @@ def main():
             )
         ]
 
-    train_idx, dev_idx = split_train_dev_indices(train_records, dev_frac=args.dev_frac, seed=args.seed)
+    train_idx, dev_idx = split_train_dev_indices(
+        train_records, dev_frac=args.dev_frac, seed=args.seed
+    )
 
     train_loader = DataLoader(
         EmbeddingDataset(train_embeddings[train_idx], train_targets[train_idx]),
@@ -814,7 +898,9 @@ def main():
     )
 
     in_dim = int(train_embeddings.shape[1])
-    model = MLPRegressor(in_dim=in_dim, hidden_dim=args.mlp_hidden_dim, dropout=args.dropout).to(device)
+    model = MLPRegressor(in_dim=in_dim, hidden_dim=args.mlp_hidden_dim, dropout=args.dropout).to(
+        device
+    )
 
     history = []
     if args.mode == "train_eval":
@@ -874,21 +960,27 @@ def main():
     val_metrics = {k: v for k, v in val_metrics_full.items() if k not in {"y_true", "y_pred"}}
 
     if embedder is None:
-        embedder = ESM2Embedder(args.esm_model_name, device=device, cache_dir=args.esm_cache_dir, logger=logger)
+        embedder = ESM2Embedder(
+            args.esm_model_name, device=device, cache_dir=args.esm_cache_dir, logger=logger
+        )
 
     if args.skip_generative_eval:
         gen_metrics = {"skipped": True}
         gen_rows = []
     else:
         eval_k_list = [int(x.strip()) for x in args.eval_k_list.split(",") if x.strip()]
-        predict_fn = make_predict_fn(model, embedder, device=device, batch_size=args.predict_batch_size)
+        predict_fn = make_predict_fn(
+            model, embedder, device=device, batch_size=args.predict_batch_size
+        )
         gen_metrics, gen_rows = evaluate_generated_vs_observed(
             predict_fn,
             val_records,
             top_k=args.gen_top_k,
             k_list=eval_k_list,
         )
-        write_generated_details(args.out_dir / f"generated_top{args.gen_top_k}_vs_val_details.csv", gen_rows)
+        write_generated_details(
+            args.out_dir / f"generated_top{args.gen_top_k}_vs_val_details.csv", gen_rows
+        )
 
     report = {
         "config": {
@@ -921,7 +1013,9 @@ def main():
     with (args.out_dir / "metrics.json").open("w") as f:
         json.dump(report, f, indent=2)
 
-    baseline_path = Path("/home/uoftshen/scratch/CHE1148_Team_Protein_Origami/results/graphnet/metrics.json")
+    baseline_path = Path(
+        "/home/uoftshen/scratch/CHE1148_Team_Protein_Origami/results/graphnet/metrics.json"
+    )
     compare_with_baseline(
         baseline_metrics_path=baseline_path,
         current_val_metrics=val_metrics,

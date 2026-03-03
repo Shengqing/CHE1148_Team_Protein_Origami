@@ -38,9 +38,9 @@ class MLPRegressor(nn.Module):
         e = self.emb(x)  # (B, L, D)
         mask = (x != self.pad_idx).unsqueeze(-1).float()  # (B, L, 1)
 
-        summed = (e * mask).sum(dim=1)                    # (B, D)
-        denom = mask.sum(dim=1).clamp(min=1.0)            # (B, 1)
-        pooled = summed / denom                           # (B, D)
+        summed = (e * mask).sum(dim=1)  # (B, D)
+        denom = mask.sum(dim=1).clamp(min=1.0)  # (B, 1)
+        pooled = summed / denom  # (B, D)
 
-        out = self.mlp(pooled).squeeze(-1)                # (B,)
+        out = self.mlp(pooled).squeeze(-1)  # (B,)
         return out

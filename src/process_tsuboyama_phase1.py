@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
+from collections import Counter, defaultdict
 import csv
 import math
+from pathlib import Path
 import random
 import re
-from collections import Counter, defaultdict
-from pathlib import Path
 
-
-INPUT_CSV = Path("/home/uoftshen/scratch/CHE1148_Team_Protein_Origami/data/raw/Tsuboyama2023_DS2and3_20230416_ColFiltered.csv")
+INPUT_CSV = Path(
+    "/home/uoftshen/scratch/CHE1148_Team_Protein_Origami/data/raw/Tsuboyama2023_DS2and3_20230416_ColFiltered.csv"
+)
 OUT_DIR = Path("/home/uoftshen/scratch/CHE1148_Team_Protein_Origami/data/processed")
 
 SEED = 42
@@ -63,7 +64,7 @@ def apply_substitutions(wt_seq: str, muts):
 def ci_width(row):
     try:
         return float(row["deltaG_95CI_high"]) - float(row["deltaG_95CI_low"])
-    except Exception:
+    except (KeyError, TypeError, ValueError):
         return float("inf")
 
 
@@ -74,7 +75,7 @@ def row_variance_from_ci95(row):
         width = max(high - low, 1e-9)
         sigma = width / (2.0 * 1.96)
         return max(sigma * sigma, 1e-12)
-    except Exception:
+    except (KeyError, TypeError, ValueError):
         return 1.0
 
 
@@ -327,7 +328,9 @@ def main():
         rep_out["collapsed_deltaG_ivw_95CI_low"] = f"{(mean_ivw - ci95):.9f}"
         rep_out["collapsed_deltaG_ivw_95CI_high"] = f"{(mean_ivw + ci95):.9f}"
         rep_out["collapsed_deltaG_ivw_var"] = f"{var_ivw:.12f}"
-        rep_out["collapsed_deltaG_mean_unweighted"] = f"{(sum(g['deltaG_values']) / len(g['deltaG_values'])):.9f}"
+        rep_out["collapsed_deltaG_mean_unweighted"] = (
+            f"{(sum(g['deltaG_values']) / len(g['deltaG_values'])):.9f}"
+        )
         collapsed_rows.append(rep_out)
 
     collapsed_rows = drop_unneeded_columns(collapsed_rows, cols_to_remove={"dna_seq"})
@@ -337,7 +340,8 @@ def main():
     phase1_rows = [
         r
         for r in collapsed_rows
-        if detect_single_substitution(r["mut_type"]) and not r["parent_WT_id"].startswith("UNRESOLVED::")
+        if detect_single_substitution(r["mut_type"])
+        and not r["parent_WT_id"].startswith("UNRESOLVED::")
     ]
 
     train_idx, val_idx = stratified_split_indices(
@@ -359,14 +363,18 @@ def main():
     phase1_fieldnames = [c for c in collapsed_fieldnames if c not in FINAL_DROP_COLUMNS]
     write_csv(OUT_DIR / "tsuboyama_processed_train_full.csv", phase1_fieldnames, train_full_out)
     write_csv(OUT_DIR / "tsuboyama_processed_val_full.csv", phase1_fieldnames, val_full_out)
-    write_csv(OUT_DIR / "tsuboyama_processed_train_sampled.csv", phase1_fieldnames, train_sampled_out)
+    write_csv(
+        OUT_DIR / "tsuboyama_processed_train_sampled.csv", phase1_fieldnames, train_sampled_out
+    )
 
     print("Processing complete.")
     print(f"Train full: {OUT_DIR / 'tsuboyama_processed_train_full.csv'}")
     print(f"Val full: {OUT_DIR / 'tsuboyama_processed_val_full.csv'}")
     print(f"Train sampled: {OUT_DIR / 'tsuboyama_processed_train_sampled.csv'}")
     print(f"Rows (phase1 resolved single substitutions): {len(phase1_rows)}")
-    print(f"Train full rows: {len(train_full)} | Val full rows: {len(val_full)} | Train sampled rows: {len(train_sampled)}")
+    print(
+        f"Train full rows: {len(train_full)} | Val full rows: {len(val_full)} | Train sampled rows: {len(train_sampled)}"
+    )
 
 
 if __name__ == "__main__":

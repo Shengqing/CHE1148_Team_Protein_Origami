@@ -9,7 +9,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from .eval import regression_metrics, Metrics
+from .eval import Metrics, regression_metrics
 
 
 @dataclass

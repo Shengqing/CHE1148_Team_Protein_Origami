@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -21,7 +19,9 @@ def plot_hist(train: pd.Series, val: pd.Series, title: str, xlabel: str, outpath
     plt.close()
 
 
-def plot_top_counts(series: pd.Series, title: str, xlabel: str, outpath: str, topn: int = 30) -> None:
+def plot_top_counts(
+    series: pd.Series, title: str, xlabel: str, outpath: str, topn: int = 30
+) -> None:
     counts = series.value_counts().head(topn)
     plt.figure(figsize=(12, 4))
     counts.plot(kind="bar")
@@ -37,14 +37,16 @@ def run_eda(train_df: pd.DataFrame, val_df: pd.DataFrame, out_dir: str) -> None:
     ensure_dir(out_dir)
 
     plot_hist(
-        train_df["deltaG"], val_df["deltaG"],
+        train_df["deltaG"],
+        val_df["deltaG"],
         title="ΔG distribution (train vs val)",
         xlabel="ΔG",
         outpath=f"{out_dir}/dg_hist.png",
     )
 
     plot_hist(
-        train_df["seq_len"], val_df["seq_len"],
+        train_df["seq_len"],
+        val_df["seq_len"],
         title="Sequence length distribution (train vs val)",
         xlabel="Sequence length",
         outpath=f"{out_dir}/len_hist.png",
@@ -54,7 +56,8 @@ def run_eda(train_df: pd.DataFrame, val_df: pd.DataFrame, out_dir: str) -> None:
         train_ci = train_df["deltaG_95CI_high"] - train_df["deltaG_95CI_low"]
         val_ci = val_df["deltaG_95CI_high"] - val_df["deltaG_95CI_low"]
         plot_hist(
-            train_ci, val_ci,
+            train_ci,
+            val_ci,
             title="ΔG 95% CI width (train vs val)",
             xlabel="CI width",
             outpath=f"{out_dir}/ci_width_hist.png",

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass
+import math
 from typing import Dict
 
 import numpy as np
@@ -19,6 +19,7 @@ class Metrics:
 def spearman_corr(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     # pandas handles ties well; avoids scipy dependency
     import pandas as pd
+
     return float(pd.Series(y_true).corr(pd.Series(y_pred), method="spearman"))
 
 

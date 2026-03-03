@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 import os
 import random
-from dataclasses import dataclass
 from typing import Any, Dict
 
 import numpy as np

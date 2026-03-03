@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 import argparse
 import csv
+from dataclasses import dataclass
 import json
 import logging
-import math
-import random
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple
+import random
+from typing import Dict, List, Sequence, Tuple
 
 import torch
 import torch.nn as nn
@@ -18,7 +17,7 @@ try:
     import numpy as np
 
     HAS_PLOTTING = True
-except Exception:
+except ImportError:
     HAS_PLOTTING = False
 
 
@@ -154,7 +153,9 @@ class GraphNetLayer(nn.Module):
 
 
 class GraphNetRegressor(nn.Module):
-    def __init__(self, hidden_dim: int = 128, n_layers: int = 4, dropout: float = 0.1, max_len: int = 512):
+    def __init__(
+        self, hidden_dim: int = 128, n_layers: int = 4, dropout: float = 0.1, max_len: int = 512
+    ):
         super().__init__()
         self.aa_embed = nn.Embedding(len(AA_ALPHABET) + 1, hidden_dim)
         self.pos_embed = nn.Embedding(max_len, hidden_dim)
@@ -197,7 +198,9 @@ def read_records(path: Path) -> List[Record]:
     return out
 
 
-def split_train_dev(records: List[Record], dev_frac: float, seed: int) -> Tuple[List[Record], List[Record]]:
+def split_train_dev(
+    records: List[Record], dev_frac: float, seed: int
+) -> Tuple[List[Record], List[Record]]:
     rnd = random.Random(seed)
     by_cluster: Dict[str, List[Record]] = {}
     for rec in records:
@@ -289,7 +292,13 @@ def regression_metrics_from_lists(y_true_list: List[float], y_pred_list: List[fl
     }
 
 
-def eval_regression(model: nn.Module, loader: DataLoader, device: torch.device, return_arrays: bool = False):
+def eval_regression(
+    model: nn.Module,
+    loader: DataLoader,
+    device: torch.device,
+    *,
+    return_arrays: bool = False,
+):
     model.eval()
     ys, preds = [], []
     with torch.no_grad():
@@ -338,7 +347,9 @@ def reconstruct_wt_from_mutant(mutant_seq: str, mut_type: str):
     return "".join(arr)
 
 
-def predict_sequences(model: nn.Module, seqs: Sequence[str], device: torch.device, batch_size: int = 1024) -> List[float]:
+def predict_sequences(
+    model: nn.Module, seqs: Sequence[str], device: torch.device, batch_size: int = 1024
+) -> List[float]:
     model.eval()
     out = []
     with torch.no_grad():
@@ -552,11 +563,17 @@ def evaluate_generated_vs_observed(
             "unmatched_n": unmatched_n,
             "unmatched_above_obs_max_n": int(vals["unmatched_above_obs_max_n"]),
             "unmatched_below_obs_min_n": int(vals["unmatched_below_obs_min_n"]),
-            "pct_unmatched_above_obs_max": 100.0 * vals["unmatched_above_obs_max_n"] / max(unmatched_n, 1),
-            "pct_unmatched_below_obs_min": 100.0 * vals["unmatched_below_obs_min_n"] / max(unmatched_n, 1),
+            "pct_unmatched_above_obs_max": 100.0
+            * vals["unmatched_above_obs_max_n"]
+            / max(unmatched_n, 1),
+            "pct_unmatched_below_obs_min": 100.0
+            * vals["unmatched_below_obs_min_n"]
+            / max(unmatched_n, 1),
         }
 
-    exhaustive_matched_metrics = regression_metrics_from_lists(exhaustive_matched_true, exhaustive_matched_pred)
+    exhaustive_matched_metrics = regression_metrics_from_lists(
+        exhaustive_matched_true, exhaustive_matched_pred
+    )
 
     summary = {
         "n_validation_rows": len(val_records),
@@ -582,11 +599,19 @@ def evaluate_generated_vs_observed(
             "ood_cluster_breakdown": {
                 "71": top3_by_cluster_pct.get(
                     "71",
-                    {"n_proteins": 0, "n_with_top3_lower_than_wt": 0, "pct_with_top3_lower_than_wt": 0.0},
+                    {
+                        "n_proteins": 0,
+                        "n_with_top3_lower_than_wt": 0,
+                        "pct_with_top3_lower_than_wt": 0.0,
+                    },
                 ),
                 "213": top3_by_cluster_pct.get(
                     "213",
-                    {"n_proteins": 0, "n_with_top3_lower_than_wt": 0, "pct_with_top3_lower_than_wt": 0.0},
+                    {
+                        "n_proteins": 0,
+                        "n_with_top3_lower_than_wt": 0,
+                        "pct_with_top3_lower_than_wt": 0.0,
+                    },
                 ),
             },
         },
@@ -596,10 +621,16 @@ def evaluate_generated_vs_observed(
                 "unmatched_n": exhaustive_unmatched_total,
                 "unmatched_above_observed_max_n": exhaustive_unmatched_above_obs_max,
                 "unmatched_below_observed_min_n": exhaustive_unmatched_below_obs_min,
-                "pct_unmatched_above_observed_max": 100.0 * exhaustive_unmatched_above_obs_max / max(exhaustive_unmatched_total, 1),
-                "pct_unmatched_below_observed_min": 100.0 * exhaustive_unmatched_below_obs_min / max(exhaustive_unmatched_total, 1),
+                "pct_unmatched_above_observed_max": 100.0
+                * exhaustive_unmatched_above_obs_max
+                / max(exhaustive_unmatched_total, 1),
+                "pct_unmatched_below_observed_min": 100.0
+                * exhaustive_unmatched_below_obs_min
+                / max(exhaustive_unmatched_total, 1),
             },
-            "by_cluster": dict(sorted(exhaustive_by_cluster_summary.items(), key=cluster_sort_key)),
+            "by_cluster": dict(
+                sorted(exhaustive_by_cluster_summary.items(), key=cluster_sort_key)
+            ),
             "ood_cluster_breakdown": {
                 "71": exhaustive_by_cluster_summary.get(
                     "71",
@@ -636,12 +667,18 @@ def evaluate_generated_vs_observed(
         },
         "matched_variant_quality": {
             "n_matched": len(matched_true_delta_g),
-            "mean_true_deltaG": (sum(matched_true_delta_g) / len(matched_true_delta_g)) if matched_true_delta_g else None,
+            "mean_true_deltaG": (sum(matched_true_delta_g) / len(matched_true_delta_g))
+            if matched_true_delta_g
+            else None,
             "median_true_rank": (
-                float(np.median(np.array(matched_true_rank))) if matched_true_rank and HAS_PLOTTING else None
+                float(np.median(np.array(matched_true_rank)))
+                if matched_true_rank and HAS_PLOTTING
+                else None
             ),
             "median_true_rank_percentile": (
-                float(np.median(np.array(matched_true_rank_pct))) if matched_true_rank_pct and HAS_PLOTTING else None
+                float(np.median(np.array(matched_true_rank_pct)))
+                if matched_true_rank_pct and HAS_PLOTTING
+                else None
             ),
         },
         "hit_curve": hit_curve,
@@ -671,7 +708,14 @@ def write_generated_details(path: Path, rows: Sequence[dict]):
             w.writerow(row)
 
 
-def plot_diagnostics(out_dir: Path, history: Sequence[dict], y_true: List[float], y_pred: List[float], gen_summary: dict, gen_rows: Sequence[dict]):
+def plot_diagnostics(
+    out_dir: Path,
+    history: Sequence[dict],
+    y_true: List[float],
+    y_pred: List[float],
+    gen_summary: dict,
+    gen_rows: Sequence[dict],
+):
     if not HAS_PLOTTING:
         return
 
@@ -742,7 +786,8 @@ def plot_diagnostics(out_dir: Path, history: Sequence[dict], y_true: List[float]
     matched_rank_pct = [
         float(r["true_rank_percentile_if_matched"])
         for r in gen_rows
-        if r.get("is_match_in_validation_variants") and r.get("true_rank_percentile_if_matched") is not None
+        if r.get("is_match_in_validation_variants")
+        and r.get("true_rank_percentile_if_matched") is not None
     ]
     if matched_rank_pct:
         plt.figure(figsize=(7, 4.5))
@@ -779,11 +824,31 @@ def train_one_epoch(model, loader, optimizer, device):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Train GraphNet generative model for Protein Origami")
-    parser.add_argument("--train_csv", type=Path, default=Path("/home/uoftshen/scratch/CHE1148_Team_Protein_Origami/data/processed/tsuboyama_processed_train_sampled.csv"))
-    parser.add_argument("--val_csv", type=Path, default=Path("/home/uoftshen/scratch/CHE1148_Team_Protein_Origami/data/processed/tsuboyama_processed_val_full.csv"))
-    parser.add_argument("--out_dir", type=Path, default=Path("/home/uoftshen/scratch/CHE1148_Team_Protein_Origami/results/graphnet"))
-    parser.add_argument("--mode", type=str, choices=["train_eval", "eval_only"], default="train_eval")
+    parser = argparse.ArgumentParser(
+        description="Train GraphNet generative model for Protein Origami"
+    )
+    parser.add_argument(
+        "--train_csv",
+        type=Path,
+        default=Path(
+            "/home/uoftshen/scratch/CHE1148_Team_Protein_Origami/data/processed/tsuboyama_processed_train_sampled.csv"
+        ),
+    )
+    parser.add_argument(
+        "--val_csv",
+        type=Path,
+        default=Path(
+            "/home/uoftshen/scratch/CHE1148_Team_Protein_Origami/data/processed/tsuboyama_processed_val_full.csv"
+        ),
+    )
+    parser.add_argument(
+        "--out_dir",
+        type=Path,
+        default=Path("/home/uoftshen/scratch/CHE1148_Team_Protein_Origami/results/graphnet"),
+    )
+    parser.add_argument(
+        "--mode", type=str, choices=["train_eval", "eval_only"], default="train_eval"
+    )
     parser.add_argument("--model_path", type=Path, default=None)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--epochs", type=int, default=20)
@@ -806,11 +871,28 @@ def main():
     train_records_all = read_records(args.train_csv)
     val_records = read_records(args.val_csv)
     max_len = max(len(r.aa_seq) for r in (train_records_all + val_records))
-    val_loader = DataLoader(SequenceDataset(val_records), batch_size=args.batch_size, shuffle=False, collate_fn=collate_fn)
+    val_loader = DataLoader(
+        SequenceDataset(val_records),
+        batch_size=args.batch_size,
+        shuffle=False,
+        collate_fn=collate_fn,
+    )
 
-    train_records, dev_records = split_train_dev(train_records_all, dev_frac=args.dev_frac, seed=args.seed)
-    train_loader = DataLoader(SequenceDataset(train_records), batch_size=args.batch_size, shuffle=True, collate_fn=collate_fn)
-    dev_loader = DataLoader(SequenceDataset(dev_records), batch_size=args.batch_size, shuffle=False, collate_fn=collate_fn)
+    train_records, dev_records = split_train_dev(
+        train_records_all, dev_frac=args.dev_frac, seed=args.seed
+    )
+    train_loader = DataLoader(
+        SequenceDataset(train_records),
+        batch_size=args.batch_size,
+        shuffle=True,
+        collate_fn=collate_fn,
+    )
+    dev_loader = DataLoader(
+        SequenceDataset(dev_records),
+        batch_size=args.batch_size,
+        shuffle=False,
+        collate_fn=collate_fn,
+    )
 
     checkpoint_state = None
     checkpoint_cfg = None
@@ -884,7 +966,11 @@ def main():
             torch.save(model.state_dict(), args.out_dir / "graphnet_model.pt")
     else:
         model_path = args.model_path or (args.out_dir / "graphnet_model.pt")
-        state = checkpoint_state if checkpoint_state is not None else torch.load(model_path, map_location="cpu")
+        state = (
+            checkpoint_state
+            if checkpoint_state is not None
+            else torch.load(model_path, map_location="cpu")
+        )
         model.load_state_dict(state)
         logger.info(f"Loaded model checkpoint: {model_path}")
 
@@ -902,7 +988,9 @@ def main():
     )
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
-    write_generated_details(args.out_dir / f"generated_top{args.gen_top_k}_vs_val_details.csv", gen_rows)
+    write_generated_details(
+        args.out_dir / f"generated_top{args.gen_top_k}_vs_val_details.csv", gen_rows
+    )
     write_history_csv(args.out_dir / "training_history.csv", history)
     plot_diagnostics(args.out_dir, history, y_true, y_pred, gen_metrics, gen_rows)
 
@@ -945,8 +1033,12 @@ def main():
     logger.info(f"  ood_cluster_71_rows: {gen_metrics['ood_clusters']['71']['row_count']}")
     logger.info(f"  ood_cluster_213_rows: {gen_metrics['ood_clusters']['213']['row_count']}")
     logger.info(f"  top3_vs_wt_predicted_deltaG: {gen_metrics['top3_vs_wt_predicted_deltaG']}")
-    logger.info(f"  exhaustive_generated_vs_observed.matched_prediction_vs_actual: {gen_metrics['exhaustive_generated_vs_observed']['matched_prediction_vs_actual']}")
-    logger.info(f"  exhaustive_generated_vs_observed.unmatched_distribution_vs_observed_range: {gen_metrics['exhaustive_generated_vs_observed']['unmatched_distribution_vs_observed_range']}")
+    logger.info(
+        f"  exhaustive_generated_vs_observed.matched_prediction_vs_actual: {gen_metrics['exhaustive_generated_vs_observed']['matched_prediction_vs_actual']}"
+    )
+    logger.info(
+        f"  exhaustive_generated_vs_observed.unmatched_distribution_vs_observed_range: {gen_metrics['exhaustive_generated_vs_observed']['unmatched_distribution_vs_observed_range']}"
+    )
     logger.info(f"  topk_evaluation: {gen_metrics['topk_evaluation']}")
     logger.info(f"  suggested_k_from_hit_curve: {gen_metrics['suggested_k_from_hit_curve']}")
 

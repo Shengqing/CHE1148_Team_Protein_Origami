@@ -10,8 +10,8 @@ import torch
 from torch.utils.data import DataLoader
 
 from .data import (
-    VOCAB,
     PAD_IDX,
+    VOCAB,
     ProteinDataset,
     compute_max_len,
     load_and_align,
