@@ -1,3 +1,13 @@
+# Final Report TA Feedback Execution Reminder:
+
+- Careful with the discrepancies (the MAE in the abstract differs from Table 1).
+- Split Methods and Results into two separate sections.
+- Narrow it to a single architecture and make sure to connect your choice to your project's motivation.
+- Add ablation studies of the hyperparameters of your selected architecture.
+- Focus on evaluating generation quality for the final paper; include metrics to quantify sequence validity and novelty.
+- Quantify and report variance where applicable.
+- Use a consistent color palette for the final paper's figs.
+
 # Protein Origami: Energetics-Informed Modeling for Protein Stability
 
 This repository contains the code used for the CHE1148 Protein Origami project on learning protein stability landscapes from sequence, with an emphasis on **experimentally measured folding free energy** ($\Delta G$). The workflow combines data curation, exploratory analysis, discriminative baselines, ESM2 embedding pipelines, graph-based models, and generative evaluation utilities.
