@@ -154,12 +154,18 @@ class GraphNetLayer(nn.Module):
 
 class GraphNetRegressor(nn.Module):
     def __init__(
-        self, hidden_dim: int = 128, n_layers: int = 4, dropout: float = 0.1, max_len: int = 512
+        self,
+        hidden_dim: int = 128,
+        n_layers: int = 4,
+        dropout: float = 0.1,
+        max_len: int = 512,
     ):
         super().__init__()
         self.aa_embed = nn.Embedding(len(AA_ALPHABET) + 1, hidden_dim)
         self.pos_embed = nn.Embedding(max_len, hidden_dim)
-        self.layers = nn.ModuleList([GraphNetLayer(hidden_dim, dropout) for _ in range(n_layers)])
+        self.layers = nn.ModuleList(
+            [GraphNetLayer(hidden_dim, dropout) for _ in range(n_layers)]
+        )
         self.readout = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim),
             nn.ReLU(),
@@ -169,7 +175,11 @@ class GraphNetRegressor(nn.Module):
 
     def forward(self, token_ids: torch.Tensor, mask: torch.Tensor):
         bsz, seq_len = token_ids.shape
-        positions = torch.arange(seq_len, device=token_ids.device).unsqueeze(0).expand(bsz, -1)
+        positions = (
+            torch.arange(seq_len, device=token_ids.device)
+            .unsqueeze(0)
+            .expand(bsz, -1)
+        )
         h = self.aa_embed(token_ids) + self.pos_embed(positions)
         h = h * mask.unsqueeze(-1)
 
@@ -269,7 +279,9 @@ def spearman(pred: torch.Tensor, y: torch.Tensor) -> float:
     return pearson(rx, ry)
 
 
-def regression_metrics_from_lists(y_true_list: List[float], y_pred_list: List[float]) -> dict:
+def regression_metrics_from_lists(
+    y_true_list: List[float], y_pred_list: List[float]
+) -> dict:
     if len(y_true_list) == 0:
         return {
             "n": 0,
@@ -348,7 +360,10 @@ def reconstruct_wt_from_mutant(mutant_seq: str, mut_type: str):
 
 
 def predict_sequences(
-    model: nn.Module, seqs: Sequence[str], device: torch.device, batch_size: int = 1024
+    model: nn.Module,
+    seqs: Sequence[str],
+    device: torch.device,
+    batch_size: int = 1024,
 ) -> List[float]:
     model.eval()
     out = []

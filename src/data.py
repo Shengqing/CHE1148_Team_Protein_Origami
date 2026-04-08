@@ -30,10 +30,9 @@ UNK_IDX = STOI["<UNK>"]
 
 def load_and_align(path: str) -> pd.DataFrame:
     """
-    Match your Colab cleaning:
-    - keep WT_cluster as string
-    - drop rows missing aa_seq/deltaG/WT_cluster
-    - add seq_len
+    Loads data from a CSV file, enforces the required schema, and cleans the data.
+    Drops rows missing essential fields ('aa_seq', 'deltaG', 'WT_cluster') and 
+    computes the sequence length for each row.
     """
     df = pd.read_csv(path, low_memory=False)
 
@@ -54,11 +53,13 @@ def load_and_align(path: str) -> pd.DataFrame:
     return df
 
 
-def compute_max_len(train_df: pd.DataFrame, val_df: pd.DataFrame, q: float, cap: int) -> int:
+def compute_max_len(
+    train_df: pd.DataFrame, val_df: pd.DataFrame, q: float, cap: int
+) -> int:
     """
-    Match your Colab behavior:
-      MAX_LEN = int(max(train_q, val_q))
-      MAX_LEN = max(10, min(MAX_LEN, cap))
+    Computes the maximum sequence length to use for padding/truncating based on 
+    the given quantile of sequence lengths in the training and validation datasets.
+    The computed length is bounded between 10 and the specified cap.
     """
     train_q = train_df["seq_len"].quantile(q)
     val_q = val_df["seq_len"].quantile(q)
@@ -69,16 +70,28 @@ def compute_max_len(train_df: pd.DataFrame, val_df: pd.DataFrame, q: float, cap:
 
 
 def encode_seq(seq: str) -> List[int]:
+    """
+    Encodes an amino acid sequence into a list of integer indices based on the vocabulary.
+    Unknown characters are mapped to the <UNK> token index.
+    """
     return [STOI.get(ch, UNK_IDX) for ch in seq]
 
 
 def pad_trunc(ids: List[int], max_len: int) -> List[int]:
+    """
+    Pads or truncates a list of token indices to match the specified maximum length.
+    Sequences longer than max_len are truncated; shorter sequences are right-padded with <PAD>.
+    """
     if len(ids) >= max_len:
         return ids[:max_len]
     return ids + [PAD_IDX] * (max_len - len(ids))
 
 
 class ProteinDataset(Dataset):
+    """
+    Dataset class for loading amino acid sequences and their corresponding deltaG values.
+    Handles encoding, padding, and truncating sequences to a fixed maximum length.
+    """
     def __init__(self, df: pd.DataFrame, max_len: int):
         self.seqs = df["aa_seq"].tolist()
         self.targets = df["deltaG"].astype(float).values

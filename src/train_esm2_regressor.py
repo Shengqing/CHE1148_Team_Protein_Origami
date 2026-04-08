@@ -46,7 +46,9 @@ class EmbeddingDataset(Dataset):
 
 
 class MLPRegressor(nn.Module):
-    def __init__(self, in_dim: int, hidden_dim: int = 1024, dropout: float = 0.15):
+    def __init__(
+        self, in_dim: int, hidden_dim: int = 1024, dropout: float = 0.15
+    ):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(in_dim, hidden_dim),
@@ -80,8 +82,12 @@ class ESM2Embedder:
         self.device = device
         self.logger = logger
         cache_dir_str = str(cache_dir) if cache_dir is not None else None
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=cache_dir_str)
-        self.model = AutoModel.from_pretrained(model_name, cache_dir=cache_dir_str)
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            model_name, cache_dir=cache_dir_str
+        )
+        self.model = AutoModel.from_pretrained(
+            model_name, cache_dir=cache_dir_str
+        )
         self.model.to(device)
         self.model.eval()
         for p in self.model.parameters():
@@ -92,7 +98,9 @@ class ESM2Embedder:
             raise RuntimeError("Could not determine hidden_size from ESM2 model config")
         self.embedding_dim = int(hidden_size)
 
-    def embed_sequences_pooled(self, seqs: Sequence[str], batch_size: int = 16) -> torch.Tensor:
+    def embed_sequences_pooled(
+        self, seqs: Sequence[str], batch_size: int = 16
+    ) -> torch.Tensor:
         pooled_out = []
         with torch.no_grad():
             for i in range(0, len(seqs), batch_size):
@@ -234,7 +242,9 @@ def spearman(pred: torch.Tensor, y: torch.Tensor) -> float:
     return pearson(rx, ry)
 
 
-def regression_metrics_from_lists(y_true_list: List[float], y_pred_list: List[float]) -> dict:
+def regression_metrics_from_lists(
+    y_true_list: List[float], y_pred_list: List[float]
+) -> dict:
     if len(y_true_list) == 0:
         return {
             "n": 0,
@@ -376,7 +386,10 @@ def train_one_epoch(model, loader, optimizer, device):
 
 
 def make_predict_fn(
-    model: nn.Module, embedder: ESM2Embedder, device: torch.device, batch_size: int
+    model: nn.Module,
+    embedder: ESM2Embedder,
+    device: torch.device,
+    batch_size: int,
 ):
     def _predict(seqs: Sequence[str]) -> List[float]:
         if len(seqs) == 0:
@@ -722,7 +735,9 @@ def write_generated_details(path: Path, rows: Sequence[dict]):
             w.writerow(row)
 
 
-def compare_with_baseline(baseline_metrics_path: Path, current_val_metrics: dict, out_path: Path):
+def compare_with_baseline(
+    baseline_metrics_path: Path, current_val_metrics: dict, out_path: Path
+):
     baseline_val = None
     if baseline_metrics_path.exists():
         with baseline_metrics_path.open() as f:
@@ -750,7 +765,9 @@ def compare_with_baseline(baseline_metrics_path: Path, current_val_metrics: dict
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Train ESM2-650M regressor for Protein Origami")
+    parser = argparse.ArgumentParser(
+        description="Train ESM2-650M regressor for Protein Origami"
+    )
     parser.add_argument(
         "--train_csv",
         type=Path,
@@ -793,7 +810,9 @@ def main():
     parser.add_argument("--dev_frac", type=float, default=0.1)
     parser.add_argument("--gen_top_k", type=int, default=10)
     parser.add_argument("--eval_k_list", type=str, default="1,3,5,10,20,50")
-    parser.add_argument("--esm_model_name", type=str, default="facebook/esm2_t33_650M_UR50D")
+    parser.add_argument(
+        "--esm_model_name", type=str, default="facebook/esm2_t33_650M_UR50D"
+    )
     parser.add_argument("--esm_cache_dir", type=Path, default=None)
     parser.add_argument("--embed_batch_size", type=int, default=16)
     parser.add_argument("--predict_batch_size", type=int, default=256)
@@ -810,8 +829,12 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logger.info("mode=%s device=%s", args.mode, device)
 
-    train_embed_path = args.train_embed_path or (args.embedding_dir / "train_sampled_esm2_650m.pt")
-    val_embed_path = args.val_embed_path or (args.embedding_dir / "val_full_esm2_650m.pt")
+    train_embed_path = args.train_embed_path or (
+        args.embedding_dir / "train_sampled_esm2_650m.pt"
+    )
+    val_embed_path = args.val_embed_path or (
+        args.embedding_dir / "val_full_esm2_650m.pt"
+    )
 
     need_precompute = (
         args.prepare_embeddings
@@ -898,9 +921,9 @@ def main():
     )
 
     in_dim = int(train_embeddings.shape[1])
-    model = MLPRegressor(in_dim=in_dim, hidden_dim=args.mlp_hidden_dim, dropout=args.dropout).to(
-        device
-    )
+    model = MLPRegressor(
+        in_dim=in_dim, hidden_dim=args.mlp_hidden_dim, dropout=args.dropout
+    ).to(device)
 
     history = []
     if args.mode == "train_eval":
@@ -956,8 +979,14 @@ def main():
         model.load_state_dict(ckpt["state_dict"])
         logger.info("Loaded model checkpoint: %s", model_path)
 
-    val_metrics_full = eval_regression(model, val_loader, device, return_arrays=True)
-    val_metrics = {k: v for k, v in val_metrics_full.items() if k not in {"y_true", "y_pred"}}
+    val_metrics_full = eval_regression(
+        model, val_loader, device, return_arrays=True
+    )
+    val_metrics = {
+        k: v
+        for k, v in val_metrics_full.items()
+        if k not in {"y_true", "y_pred"}
+    }
 
     if embedder is None:
         embedder = ESM2Embedder(
@@ -994,7 +1023,9 @@ def main():
             "dev_frac": args.dev_frac,
             "device": str(device),
             "gen_top_k": args.gen_top_k,
-            "eval_k_list": [int(x.strip()) for x in args.eval_k_list.split(",") if x.strip()],
+            "eval_k_list": [
+            int(x.strip()) for x in args.eval_k_list.split(",") if x.strip()
+        ],
             "embedding_model": args.esm_model_name,
             "embedding_train_path": str(train_embed_path),
             "embedding_val_path": str(val_embed_path),

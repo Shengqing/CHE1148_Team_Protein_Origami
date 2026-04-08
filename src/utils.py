@@ -33,4 +33,6 @@ class DeviceConfig:
 
     @staticmethod
     def auto() -> "DeviceConfig":
-        return DeviceConfig(device=torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+        return DeviceConfig(
+            device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        )

@@ -5,6 +5,7 @@ import math
 from typing import Dict
 
 import numpy as np
+import pandas as pd
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 
@@ -18,8 +19,6 @@ class Metrics:
 
 def spearman_corr(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     # pandas handles ties well; avoids scipy dependency
-    import pandas as pd
-
     return float(pd.Series(y_true).corr(pd.Series(y_pred), method="spearman"))
 
 

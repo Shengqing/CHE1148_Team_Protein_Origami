@@ -23,7 +23,9 @@ from .utils import DeviceConfig, ensure_dir, load_yaml, set_seed
 
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Train baseline MLP for ΔG prediction.")
+    p = argparse.ArgumentParser(
+        description="Train baseline MLP for ΔG prediction."
+    )
     p.add_argument("--config", type=str, default="configs/baseline_mlp.yaml")
     return p.parse_args()
 
