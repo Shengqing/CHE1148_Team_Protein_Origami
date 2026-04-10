@@ -1,4 +1,5 @@
 """Training and evaluation routines for Protein VAE."""
+
 import random
 from typing import Any, Dict, List, Tuple
 
@@ -109,8 +110,12 @@ def train_and_validate(
                 all_labels.append(labels.cpu().numpy())
 
         avg_val = val_loss / len(val_loader)
-        preds_final = val_ds.scaler.inverse_transform(np.vstack(all_preds)).flatten()
-        labels_final = val_ds.scaler.inverse_transform(np.vstack(all_labels)).flatten()
+        preds_final = val_ds.scaler.inverse_transform(
+            np.vstack(all_preds)
+        ).flatten()
+        labels_final = val_ds.scaler.inverse_transform(
+            np.vstack(all_labels)
+        ).flatten()
 
         rmse = np.sqrt(mean_squared_error(labels_final, preds_final))
         r2 = r2_score(labels_final, preds_final)
@@ -174,7 +179,9 @@ def run_unified_evaluation(
         p_boot, l_boot = resample(
             preds_final, labels_final, replace=True, random_state=i
         )
-        metrics_boot["rmse"].append(np.sqrt(mean_squared_error(l_boot, p_boot)))
+        metrics_boot["rmse"].append(
+            np.sqrt(mean_squared_error(l_boot, p_boot))
+        )
         metrics_boot["r2"].append(r2_score(l_boot, p_boot))
         metrics_boot["rho"].append(spearmanr(l_boot, p_boot)[0])
 
@@ -189,9 +196,13 @@ def run_unified_evaluation(
         f"Spearman's ρ:  {np.mean(metrics_boot['rho']):.4f} ± {np.std(metrics_boot['rho']):.4f}"
     )
 
-    val_indices = random.sample(range(len(val_ds)), min(num_samples, len(val_ds)))
+    val_indices = random.sample(
+        range(len(val_ds)), min(num_samples, len(val_ds))
+    )
     report_data = []
-    print(f"\nProcessing {len(val_indices)} samples for mutation feasibility...")
+    print(
+        f"\nProcessing {len(val_indices)} samples for mutation feasibility..."
+    )
 
     data_obj = robust_pt_load(val_path)
 
@@ -226,13 +237,13 @@ def run_unified_evaluation(
             is_truly_better = (
                 "Yes"
                 if (is_feasible and actual_dg < input_dg)
-                else "No"
-                if is_feasible
-                else "N/A"
+                else "No" if is_feasible else "N/A"
             )
             mutations = [
                 f"{wt_aa}{pos + 1}{mut_aa}"
-                for pos, (wt_aa, mut_aa) in enumerate(zip(input_seq, mutated_seq))
+                for pos, (wt_aa, mut_aa) in enumerate(
+                    zip(input_seq, mutated_seq)
+                )
                 if wt_aa != mut_aa
             ]
 
@@ -244,9 +255,11 @@ def run_unified_evaluation(
                     "Input_DG": round(float(input_dg), 3),
                     "Exists_in_DB": "Yes" if is_feasible else "No",
                     "Truly_Stabilizing": is_truly_better,
-                    "Actual_DG": round(float(actual_dg), 3)
-                    if actual_dg is not None
-                    else None,
+                    "Actual_DG": (
+                        round(float(actual_dg), 3)
+                        if actual_dg is not None
+                        else None
+                    ),
                 }
             )
 

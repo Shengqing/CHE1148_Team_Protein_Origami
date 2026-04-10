@@ -5,21 +5,26 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
+from pathlib import Path
+
+# Add project root to sys.path so 'src' can be imported easily
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 import torch
 from torch.utils.data import DataLoader
 
-from .data import (
+from src.data import (
     PAD_IDX,
     VOCAB,
     ProteinDataset,
     compute_max_len,
     load_and_align,
 )
-from .eda import run_eda
-from .model import MLPRegressor
-from .train import train_model
-from .utils import DeviceConfig, ensure_dir, load_yaml, set_seed
+from src.eda import run_eda
+from src.model import MLPRegressor
+from src.train import train_model
+from src.utils import DeviceConfig, ensure_dir, load_yaml, set_seed
 
 
 def parse_args() -> argparse.Namespace:

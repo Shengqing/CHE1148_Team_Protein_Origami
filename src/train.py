@@ -44,7 +44,9 @@ def run_epoch(
             optimizer.zero_grad(set_to_none=True)
             loss.backward()
             if clip_grad_norm is not None:
-                nn.utils.clip_grad_norm_(model.parameters(), max_norm=clip_grad_norm)
+                nn.utils.clip_grad_norm_(
+                    model.parameters(), max_norm=clip_grad_norm
+                )
             optimizer.step()
 
         losses.append(loss.item())
@@ -85,7 +87,12 @@ def train_model(
             model, train_loader, device, criterion, optimizer, clip_grad_norm
         )
         va_loss, va_metrics = run_epoch(
-            model, val_loader, device, criterion, optimizer=None, clip_grad_norm=None
+            model,
+            val_loader,
+            device,
+            criterion,
+            optimizer=None,
+            clip_grad_norm=None,
         )
 
         scheduler.step(va_loss)

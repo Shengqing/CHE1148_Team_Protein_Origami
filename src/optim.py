@@ -1,4 +1,5 @@
 """Latent optimization routines for Protein VAE."""
+
 from typing import Optional
 
 import torch

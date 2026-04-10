@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 import argparse
 import csv
-from dataclasses import dataclass
 import json
 import logging
-from pathlib import Path
 import random
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Dict, List, Sequence, Tuple
 
 import torch
@@ -112,7 +112,9 @@ def collate_fn(batch: Sequence[Record]):
 
 
 class MLP(nn.Module):
-    def __init__(self, in_dim: int, hidden_dim: int, out_dim: int, dropout: float):
+    def __init__(
+        self, in_dim: int, hidden_dim: int, out_dim: int, dropout: float
+    ):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(in_dim, hidden_dim),
@@ -372,11 +374,17 @@ def predict_sequences(
             batch = seqs[i : i + batch_size]
             lengths = [len(s) for s in batch]
             max_len = max(lengths)
-            token_ids = torch.full((len(batch), max_len), UNK_IDX, dtype=torch.long, device=device)
-            mask = torch.zeros((len(batch), max_len), dtype=torch.float32, device=device)
+            token_ids = torch.full(
+                (len(batch), max_len), UNK_IDX, dtype=torch.long, device=device
+            )
+            mask = torch.zeros(
+                (len(batch), max_len), dtype=torch.float32, device=device
+            )
             for j, seq in enumerate(batch):
                 ids = encode_sequence(seq)
-                token_ids[j, : len(ids)] = torch.tensor(ids, dtype=torch.long, device=device)
+                token_ids[j, : len(ids)] = torch.tensor(
+                    ids, dtype=torch.long, device=device
+                )
                 mask[j, : len(ids)] = 1.0
             pred = model(token_ids, mask).detach().cpu().tolist()
             out.extend(pred)
@@ -408,7 +416,9 @@ def evaluate_generated_vs_observed(
     unparsed_rows = 0
 
     for rec in val_records:
-        cluster_row_counts[rec.wt_cluster] = cluster_row_counts.get(rec.wt_cluster, 0) + 1
+        cluster_row_counts[rec.wt_cluster] = (
+            cluster_row_counts.get(rec.wt_cluster, 0) + 1
+        )
         wt_seq = reconstruct_wt_from_mutant(rec.aa_seq, rec.mut_type)
         if wt_seq is None:
             unparsed_rows += 1
@@ -420,7 +430,9 @@ def evaluate_generated_vs_observed(
         cluster_wt_counts[cluster] = cluster_wt_counts.get(cluster, 0) + 1
 
     all_k = sorted({k for k in list(k_list) + [top_k] if k > 0})
-    hit_stats = {k: {"matched": 0, "total": 0, "wt_with_any_match": 0} for k in all_k}
+    hit_stats = {
+        k: {"matched": 0, "total": 0, "wt_with_any_match": 0} for k in all_k
+    }
 
     top3_wt_improve_total = 0
     top3_wt_improve_by_cluster: Dict[str, Dict[str, float]] = {}
@@ -466,15 +478,21 @@ def evaluate_generated_vs_observed(
         obs_max = ranked_obs[-1][1]
 
         candidates = generate_all_single_mutants(wt_seq)
-        cand_pred = predict_sequences(model, candidates, device=device, batch_size=4096)
+        cand_pred = predict_sequences(
+            model, candidates, device=device, batch_size=4096
+        )
         idx_sorted = sorted(range(len(candidates)), key=lambda i: cand_pred[i])
 
-        wt_pred = predict_sequences(model, [wt_seq], device=device, batch_size=1)[0]
+        wt_pred = predict_sequences(
+            model, [wt_seq], device=device, batch_size=1
+        )[0]
         top3_idx = idx_sorted[:3]
         top3_has_lower_than_wt = any(cand_pred[i] < wt_pred for i in top3_idx)
         if top3_has_lower_than_wt:
             top3_wt_improve_total += 1
-            top3_wt_improve_by_cluster[cluster]["n_with_top3_lower_than_wt"] += 1
+            top3_wt_improve_by_cluster[cluster][
+                "n_with_top3_lower_than_wt"
+            ] += 1
 
         for i, seq in enumerate(candidates):
             pred_val = cand_pred[i]
@@ -487,10 +505,14 @@ def evaluate_generated_vs_observed(
                 exhaustive_by_cluster[cluster]["unmatched_n"] += 1
                 if pred_val > obs_max:
                     exhaustive_unmatched_above_obs_max += 1
-                    exhaustive_by_cluster[cluster]["unmatched_above_obs_max_n"] += 1
+                    exhaustive_by_cluster[cluster][
+                        "unmatched_above_obs_max_n"
+                    ] += 1
                 if pred_val < obs_min:
                     exhaustive_unmatched_below_obs_min += 1
-                    exhaustive_by_cluster[cluster]["unmatched_below_obs_min_n"] += 1
+                    exhaustive_by_cluster[cluster][
+                        "unmatched_below_obs_min_n"
+                    ] += 1
 
         for k in all_k:
             top_idx = idx_sorted[:k]
@@ -506,7 +528,11 @@ def evaluate_generated_vs_observed(
             is_matched = seq in obs_map
             true_dg = obs_map.get(seq)
             true_rank = rank_map.get(seq)
-            rank_pct = (100.0 * true_rank / n_obs) if true_rank is not None and n_obs > 0 else None
+            rank_pct = (
+                (100.0 * true_rank / n_obs)
+                if true_rank is not None and n_obs > 0
+                else None
+            )
 
             if is_matched and true_dg is not None and true_rank is not None:
                 matched_true_delta_g.append(true_dg)
@@ -540,13 +566,21 @@ def evaluate_generated_vs_observed(
         hit_curve.append(
             {
                 "k": k,
-                "match_rate_over_generated_pct": 100.0 * hit_stats[k]["matched"] / total,
+                "match_rate_over_generated_pct": 100.0
+                * hit_stats[k]["matched"]
+                / total,
                 "wt_with_any_match": hit_stats[k]["wt_with_any_match"],
-                "wt_with_any_match_pct": 100.0 * hit_stats[k]["wt_with_any_match"] / wt_total,
+                "wt_with_any_match_pct": 100.0
+                * hit_stats[k]["wt_with_any_match"]
+                / wt_total,
             }
         )
 
-    max_wt_hit = max(x["wt_with_any_match_pct"] for x in hit_curve) if hit_curve else 0.0
+    max_wt_hit = (
+        max(x["wt_with_any_match_pct"] for x in hit_curve)
+        if hit_curve
+        else 0.0
+    )
     suggested_k = top_k
     for item in hit_curve:
         if item["wt_with_any_match_pct"] >= 0.9 * max_wt_hit:
@@ -576,8 +610,12 @@ def evaluate_generated_vs_observed(
         exhaustive_by_cluster_summary[cluster] = {
             "matched_n": int(vals["matched_n"]),
             "unmatched_n": unmatched_n,
-            "unmatched_above_obs_max_n": int(vals["unmatched_above_obs_max_n"]),
-            "unmatched_below_obs_min_n": int(vals["unmatched_below_obs_min_n"]),
+            "unmatched_above_obs_max_n": int(
+                vals["unmatched_above_obs_max_n"]
+            ),
+            "unmatched_below_obs_min_n": int(
+                vals["unmatched_below_obs_min_n"]
+            ),
             "pct_unmatched_above_obs_max": 100.0
             * vals["unmatched_above_obs_max_n"]
             / max(unmatched_n, 1),
@@ -594,8 +632,12 @@ def evaluate_generated_vs_observed(
         "n_validation_rows": len(val_records),
         "n_unparsed_rows_for_wt_reconstruction": unparsed_rows,
         "n_unique_wt_proteins": n_wt,
-        "cluster_row_counts": dict(sorted(cluster_row_counts.items(), key=cluster_sort_key)),
-        "cluster_wt_counts": dict(sorted(cluster_wt_counts.items(), key=cluster_sort_key)),
+        "cluster_row_counts": dict(
+            sorted(cluster_row_counts.items(), key=cluster_sort_key)
+        ),
+        "cluster_wt_counts": dict(
+            sorted(cluster_wt_counts.items(), key=cluster_sort_key)
+        ),
         "ood_clusters": {
             "71": {
                 "row_count": cluster_row_counts.get("71", 0),
@@ -609,8 +651,12 @@ def evaluate_generated_vs_observed(
         "top3_vs_wt_predicted_deltaG": {
             "n_proteins": n_wt,
             "n_with_top3_lower_than_wt": top3_wt_improve_total,
-            "pct_with_top3_lower_than_wt": 100.0 * top3_wt_improve_total / max(n_wt, 1),
-            "by_cluster": dict(sorted(top3_by_cluster_pct.items(), key=cluster_sort_key)),
+            "pct_with_top3_lower_than_wt": 100.0
+            * top3_wt_improve_total
+            / max(n_wt, 1),
+            "by_cluster": dict(
+                sorted(top3_by_cluster_pct.items(), key=cluster_sort_key)
+            ),
             "ood_cluster_breakdown": {
                 "71": top3_by_cluster_pct.get(
                     "71",
@@ -644,7 +690,9 @@ def evaluate_generated_vs_observed(
                 / max(exhaustive_unmatched_total, 1),
             },
             "by_cluster": dict(
-                sorted(exhaustive_by_cluster_summary.items(), key=cluster_sort_key)
+                sorted(
+                    exhaustive_by_cluster_summary.items(), key=cluster_sort_key
+                )
             ),
             "ood_cluster_breakdown": {
                 "71": exhaustive_by_cluster_summary.get(
@@ -676,15 +724,21 @@ def evaluate_generated_vs_observed(
             "n_generated": topk_total,
             "n_matched": topk_match,
             "n_unmatched": topk_total - topk_match,
-            "match_rate_over_generated_pct": 100.0 * topk_match / max(topk_total, 1),
+            "match_rate_over_generated_pct": 100.0
+            * topk_match
+            / max(topk_total, 1),
             "n_wt_with_any_match": topk_hits["wt_with_any_match"],
-            "pct_wt_with_any_match": 100.0 * topk_hits["wt_with_any_match"] / max(n_wt, 1),
+            "pct_wt_with_any_match": 100.0
+            * topk_hits["wt_with_any_match"]
+            / max(n_wt, 1),
         },
         "matched_variant_quality": {
             "n_matched": len(matched_true_delta_g),
-            "mean_true_deltaG": (sum(matched_true_delta_g) / len(matched_true_delta_g))
-            if matched_true_delta_g
-            else None,
+            "mean_true_deltaG": (
+                (sum(matched_true_delta_g) / len(matched_true_delta_g))
+                if matched_true_delta_g
+                else None
+            ),
             "median_true_rank": (
                 float(np.median(np.array(matched_true_rank)))
                 if matched_true_rank and HAS_PLOTTING
@@ -807,11 +861,15 @@ def plot_diagnostics(
     if matched_rank_pct:
         plt.figure(figsize=(7, 4.5))
         plt.hist(matched_rank_pct, bins=40)
-        plt.xlabel("True rank percentile among observed variants (lower is better)")
+        plt.xlabel(
+            "True rank percentile among observed variants (lower is better)"
+        )
         plt.ylabel("Count")
         plt.title("Quality of Matched Generated Variants")
         plt.tight_layout()
-        plt.savefig(fig_dir / "matched_variant_rank_percentile_hist.png", dpi=180)
+        plt.savefig(
+            fig_dir / "matched_variant_rank_percentile_hist.png", dpi=180
+        )
         plt.close()
 
 
@@ -859,10 +917,15 @@ def main():
     parser.add_argument(
         "--out_dir",
         type=Path,
-        default=Path("/home/uoftshen/scratch/CHE1148_Team_Protein_Origami/results/graphnet"),
+        default=Path(
+            "/home/uoftshen/scratch/CHE1148_Team_Protein_Origami/results/graphnet"
+        ),
     )
     parser.add_argument(
-        "--mode", type=str, choices=["train_eval", "eval_only"], default="train_eval"
+        "--mode",
+        type=str,
+        choices=["train_eval", "eval_only"],
+        default="train_eval",
     )
     parser.add_argument("--model_path", type=Path, default=None)
     parser.add_argument("--seed", type=int, default=42)
@@ -914,14 +977,20 @@ def main():
     if args.mode == "eval_only":
         model_path = args.model_path or (args.out_dir / "graphnet_model.pt")
         if not model_path.exists():
-            raise FileNotFoundError(f"Model checkpoint not found for eval_only mode: {model_path}")
+            raise FileNotFoundError(
+                f"Model checkpoint not found for eval_only mode: {model_path}"
+            )
         checkpoint_state = torch.load(model_path, map_location="cpu")
-        checkpoint_hidden_dim = int(checkpoint_state["aa_embed.weight"].shape[1])
+        checkpoint_hidden_dim = int(
+            checkpoint_state["aa_embed.weight"].shape[1]
+        )
         checkpoint_max_len = int(checkpoint_state["pos_embed.weight"].shape[0])
         layer_ids = {
             int(k.split(".")[1])
             for k in checkpoint_state.keys()
-            if k.startswith("layers.") and len(k.split(".")) > 2 and k.split(".")[1].isdigit()
+            if k.startswith("layers.")
+            and len(k.split(".")) > 2
+            and k.split(".")[1].isdigit()
         }
         checkpoint_layers = (max(layer_ids) + 1) if layer_ids else args.layers
         checkpoint_cfg = {
@@ -930,9 +999,13 @@ def main():
             "max_len": checkpoint_max_len,
         }
 
-    model_hidden_dim = checkpoint_cfg["hidden_dim"] if checkpoint_cfg else args.hidden_dim
+    model_hidden_dim = (
+        checkpoint_cfg["hidden_dim"] if checkpoint_cfg else args.hidden_dim
+    )
     model_layers = checkpoint_cfg["layers"] if checkpoint_cfg else args.layers
-    model_max_len = checkpoint_cfg["max_len"] if checkpoint_cfg else (max_len + 2)
+    model_max_len = (
+        checkpoint_cfg["max_len"] if checkpoint_cfg else (max_len + 2)
+    )
 
     model = GraphNetRegressor(
         hidden_dim=model_hidden_dim,
@@ -949,7 +1022,9 @@ def main():
         best_state = None
 
         for epoch in range(1, args.epochs + 1):
-            train_loss = train_one_epoch(model, train_loader, optimizer, device)
+            train_loss = train_one_epoch(
+                model, train_loader, optimizer, device
+            )
             dev_metrics = eval_regression(model, dev_loader, device)
             epoch_row = {
                 "epoch": epoch,
@@ -974,7 +1049,9 @@ def main():
 
             if dev_metrics["rmse"] < best_dev_rmse:
                 best_dev_rmse = dev_metrics["rmse"]
-                best_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
+                best_state = {
+                    k: v.cpu().clone() for k, v in model.state_dict().items()
+                }
 
         if best_state is not None:
             model.load_state_dict(best_state)
@@ -989,11 +1066,15 @@ def main():
         model.load_state_dict(state)
         logger.info(f"Loaded model checkpoint: {model_path}")
 
-    val_metrics_full = eval_regression(model, val_loader, device, return_arrays=True)
+    val_metrics_full = eval_regression(
+        model, val_loader, device, return_arrays=True
+    )
     y_true = val_metrics_full.pop("y_true")
     y_pred = val_metrics_full.pop("y_pred")
 
-    eval_k_list = [int(x.strip()) for x in args.eval_k_list.split(",") if x.strip()]
+    eval_k_list = [
+        int(x.strip()) for x in args.eval_k_list.split(",") if x.strip()
+    ]
     gen_metrics, gen_rows = evaluate_generated_vs_observed(
         model,
         val_records,
@@ -1004,10 +1085,13 @@ def main():
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
     write_generated_details(
-        args.out_dir / f"generated_top{args.gen_top_k}_vs_val_details.csv", gen_rows
+        args.out_dir / f"generated_top{args.gen_top_k}_vs_val_details.csv",
+        gen_rows,
     )
     write_history_csv(args.out_dir / "training_history.csv", history)
-    plot_diagnostics(args.out_dir, history, y_true, y_pred, gen_metrics, gen_rows)
+    plot_diagnostics(
+        args.out_dir, history, y_true, y_pred, gen_metrics, gen_rows
+    )
 
     report = {
         "config": {
@@ -1044,10 +1128,18 @@ def main():
         logger.info(f"  {k}: {v}")
 
     logger.info("Generative evaluation against observed validation variants:")
-    logger.info(f"  n_unique_wt_proteins: {gen_metrics['n_unique_wt_proteins']}")
-    logger.info(f"  ood_cluster_71_rows: {gen_metrics['ood_clusters']['71']['row_count']}")
-    logger.info(f"  ood_cluster_213_rows: {gen_metrics['ood_clusters']['213']['row_count']}")
-    logger.info(f"  top3_vs_wt_predicted_deltaG: {gen_metrics['top3_vs_wt_predicted_deltaG']}")
+    logger.info(
+        f"  n_unique_wt_proteins: {gen_metrics['n_unique_wt_proteins']}"
+    )
+    logger.info(
+        f"  ood_cluster_71_rows: {gen_metrics['ood_clusters']['71']['row_count']}"
+    )
+    logger.info(
+        f"  ood_cluster_213_rows: {gen_metrics['ood_clusters']['213']['row_count']}"
+    )
+    logger.info(
+        f"  top3_vs_wt_predicted_deltaG: {gen_metrics['top3_vs_wt_predicted_deltaG']}"
+    )
     logger.info(
         f"  exhaustive_generated_vs_observed.matched_prediction_vs_actual: {gen_metrics['exhaustive_generated_vs_observed']['matched_prediction_vs_actual']}"
     )
@@ -1055,7 +1147,9 @@ def main():
         f"  exhaustive_generated_vs_observed.unmatched_distribution_vs_observed_range: {gen_metrics['exhaustive_generated_vs_observed']['unmatched_distribution_vs_observed_range']}"
     )
     logger.info(f"  topk_evaluation: {gen_metrics['topk_evaluation']}")
-    logger.info(f"  suggested_k_from_hit_curve: {gen_metrics['suggested_k_from_hit_curve']}")
+    logger.info(
+        f"  suggested_k_from_hit_curve: {gen_metrics['suggested_k_from_hit_curve']}"
+    )
 
     logger.info(f"Saved model/metrics/artifacts under: {args.out_dir}")
 

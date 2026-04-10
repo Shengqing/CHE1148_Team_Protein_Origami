@@ -35,7 +35,9 @@ def plot_top_counts(
     plt.close()
 
 
-def run_eda(train_df: pd.DataFrame, val_df: pd.DataFrame, out_dir: str) -> None:
+def run_eda(
+    train_df: pd.DataFrame, val_df: pd.DataFrame, out_dir: str
+) -> None:
     ensure_dir(out_dir)
 
     plot_hist(
