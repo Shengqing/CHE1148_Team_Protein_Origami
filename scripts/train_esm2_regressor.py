@@ -238,7 +238,7 @@ def rankdata(values: List[float]) -> List[float]:
     return ranks
 
 
-def spearman(pred: torch.Tensor, y: torch.Tensor) -> float:
+def kendall(pred: torch.Tensor, y: torch.Tensor) -> float:
     px = pred.detach().cpu().tolist()
     py = y.detach().cpu().tolist()
     rx = torch.tensor(rankdata(px), dtype=torch.float32)
@@ -256,7 +256,7 @@ def regression_metrics_from_lists(
             "rmse": None,
             "r2": None,
             "pearson": None,
-            "spearman": None,
+            "kendall": None,
         }
 
     y_true = torch.tensor(y_true_list, dtype=torch.float32)
@@ -267,7 +267,7 @@ def regression_metrics_from_lists(
         "rmse": rmse(y_pred, y_true),
         "r2": r2_score(y_pred, y_true),
         "pearson": pearson(y_pred, y_true),
-        "spearman": spearman(y_pred, y_true),
+        "kendall": kendall(y_pred, y_true),
     }
 
 
@@ -366,7 +366,7 @@ def eval_regression(
         "rmse": rmse(p_all, y_all),
         "r2": r2_score(p_all, y_all),
         "pearson": pearson(p_all, y_all),
-        "spearman": spearman(p_all, y_all),
+        "kendall": kendall(p_all, y_all),
         "n": int(y_all.shape[0]),
     }
     if return_arrays:
@@ -802,7 +802,7 @@ def compare_with_baseline(
     }
 
     if baseline_val is not None:
-        keys = ["mae", "rmse", "r2", "pearson", "spearman"]
+        keys = ["mae", "rmse", "r2", "pearson", "kendall"]
         delta = {}
         for k in keys:
             if k in baseline_val and k in current_val_metrics:
@@ -1012,18 +1012,18 @@ def main():
                     "dev_mae": dev_metrics["mae"],
                     "dev_r2": dev_metrics["r2"],
                     "dev_pearson": dev_metrics["pearson"],
-                    "dev_spearman": dev_metrics["spearman"],
+                    "dev_kendall": dev_metrics["kendall"],
                 }
             )
             logger.info(
-                "epoch=%d train_mse=%.4f dev_rmse=%.4f dev_mae=%.4f dev_r2=%.4f dev_pearson=%.4f dev_spearman=%.4f",
+                "epoch=%d train_mse=%.4f dev_rmse=%.4f dev_mae=%.4f dev_r2=%.4f dev_pearson=%.4f dev_kendall=%.4f",
                 epoch,
                 train_loss,
                 dev_metrics["rmse"],
                 dev_metrics["mae"],
                 dev_metrics["r2"],
                 dev_metrics["pearson"],
-                dev_metrics["spearman"],
+                dev_metrics["kendall"],
             )
             if dev_metrics["rmse"] < best_dev_rmse:
                 best_dev_rmse = dev_metrics["rmse"]

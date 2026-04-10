@@ -101,10 +101,10 @@ def train_model(
             f"Epoch {epoch:02d} | "
             f"train loss {tr_loss:.4f} MAE {tr_metrics.mae:.4f} "
             f"RMSE {tr_metrics.rmse:.4f} R2 {tr_metrics.r2:.4f} "
-            f"Spearman {tr_metrics.spearman:.4f} | "
+            f"Kendall {tr_metrics.kendall:.4f} | "
             f"val loss {va_loss:.4f} MAE {va_metrics.mae:.4f} "
             f"RMSE {va_metrics.rmse:.4f} R2 {va_metrics.r2:.4f} "
-            f"Spearman {va_metrics.spearman:.4f}"
+            f"Kendall {va_metrics.kendall:.4f}"
         )
 
         if va_metrics.mae < best_val_mae:

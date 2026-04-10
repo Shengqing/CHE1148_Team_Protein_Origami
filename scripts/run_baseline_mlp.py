@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader
 from src.data import (
     PAD_IDX,
     VOCAB,
-    ProteinDataset,
+    MLPProteinDataset,
     compute_max_len,
     load_and_align,
 )
@@ -66,8 +66,8 @@ def main() -> None:
     print(f"Saved EDA figures to: {fig_dir}")
 
     # Datasets + loaders (matches your Colab settings)
-    train_ds = ProteinDataset(train_df, max_len)
-    val_ds = ProteinDataset(val_df, max_len)
+    train_ds = MLPProteinDataset(train_df, max_len)
+    val_ds = MLPProteinDataset(val_df, max_len)
 
     pin = torch.cuda.is_available()
     bs = 512 if torch.cuda.is_available() else 256

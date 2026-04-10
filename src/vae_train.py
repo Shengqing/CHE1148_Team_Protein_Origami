@@ -8,7 +8,7 @@ import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from scipy.stats import spearmanr
+from scipy.stats import kendalltau
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.utils import resample
 from torch.utils.data import DataLoader
@@ -23,7 +23,7 @@ from .constants import (
     PATIENCE,
     WEIGHT_DECAY,
 )
-from .dataset import ProteinDataset
+from .data import VAEProteinDataset as ProteinDataset
 from .model import ProteinVAE
 from .optim import optimize_latent_constrained
 from .utils import batch_decode_and_count_mutations, robust_pt_load
@@ -92,7 +92,8 @@ def train_and_validate(
             kl_loss = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())
             pred_loss = mse_loss_fn(pred_y, labels)
 
-            loss = recon_loss + 0.1 * kl_loss + pred_loss
+            kl_weight = config.get("KL_WEIGHT", 0.1)
+            loss = recon_loss + kl_weight * kl_loss + pred_loss
             loss.backward()
             optimizer.step()
 
@@ -119,11 +120,11 @@ def train_and_validate(
 
         rmse = np.sqrt(mean_squared_error(labels_final, preds_final))
         r2 = r2_score(labels_final, preds_final)
-        rho, _ = spearmanr(labels_final, preds_final)
+        rho, _ = kendalltau(labels_final, preds_final)
 
         print(
             f"Epoch {epoch}: Val Loss = {avg_val:.4f} | "
-            f"RMSE: {rmse:.4f} | R2: {r2:.4f} | Spearman: {rho:.4f}"
+            f"RMSE: {rmse:.4f} | R2: {r2:.4f} | Kendall: {rho:.4f}"
         )
 
         if avg_val < best_val_loss:
@@ -183,7 +184,7 @@ def run_unified_evaluation(
             np.sqrt(mean_squared_error(l_boot, p_boot))
         )
         metrics_boot["r2"].append(r2_score(l_boot, p_boot))
-        metrics_boot["rho"].append(spearmanr(l_boot, p_boot)[0])
+        metrics_boot["rho"].append(kendalltau(l_boot, p_boot)[0])
 
     print(f"\n--- Global Validation Metrics ({n_bootstraps} bootstraps) ---")
     print(
@@ -193,7 +194,7 @@ def run_unified_evaluation(
         f"R-squared:     {np.mean(metrics_boot['r2']):.4f} ± {np.std(metrics_boot['r2']):.4f}"
     )
     print(
-        f"Spearman's ρ:  {np.mean(metrics_boot['rho']):.4f} ± {np.std(metrics_boot['rho']):.4f}"
+        f"Kendall's τ:  {np.mean(metrics_boot['rho']):.4f} ± {np.std(metrics_boot['rho']):.4f}"
     )
 
     val_indices = random.sample(

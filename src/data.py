@@ -87,7 +87,7 @@ def pad_trunc(ids: List[int], max_len: int) -> List[int]:
     return ids + [PAD_IDX] * (max_len - len(ids))
 
 
-class ProteinDataset(Dataset):
+class MLPProteinDataset(Dataset):
     """
     Dataset class for loading amino acid sequences and their corresponding deltaG values.
     Handles encoding, padding, and truncating sequences to a fixed maximum length.
@@ -119,7 +119,7 @@ from torch.utils.data import Dataset
 from .utils import robust_pt_load
 
 
-class ProteinDataset(Dataset):
+class VAEProteinDataset(Dataset):
     """Dataset for loading memory-mapped embeddings and scaled labels."""
 
     def __init__(

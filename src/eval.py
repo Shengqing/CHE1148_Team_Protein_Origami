@@ -14,21 +14,21 @@ class Metrics:
     mae: float
     rmse: float
     r2: float
-    spearman: float
+    kendall: float
 
 
-def spearman_corr(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+def kendall_corr(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     # pandas handles ties well; avoids scipy dependency
-    return float(pd.Series(y_true).corr(pd.Series(y_pred), method="spearman"))
+    return float(pd.Series(y_true).corr(pd.Series(y_pred), method="kendall"))
 
 
 def regression_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> Metrics:
     mae = float(mean_absolute_error(y_true, y_pred))
     rmse = float(math.sqrt(mean_squared_error(y_true, y_pred)))
     r2 = float(r2_score(y_true, y_pred))
-    sp = float(spearman_corr(y_true, y_pred))
-    return Metrics(mae=mae, rmse=rmse, r2=r2, spearman=sp)
+    sp = float(kendall_corr(y_true, y_pred))
+    return Metrics(mae=mae, rmse=rmse, r2=r2, kendall=sp)
 
 
 def metrics_to_dict(m: Metrics) -> Dict[str, float]:
-    return {"MAE": m.mae, "RMSE": m.rmse, "R2": m.r2, "Spearman": m.spearman}
+    return {"MAE": m.mae, "RMSE": m.rmse, "R2": m.r2, "Kendall": m.kendall}
