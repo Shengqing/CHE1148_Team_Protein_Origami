@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
-from collections import Counter, defaultdict
 import csv
 import math
-from pathlib import Path
 import random
 import re
+from collections import Counter, defaultdict
+from pathlib import Path
 
-INPUT_CSV = Path(
-    "/home/uoftshen/scratch/CHE1148_Team_Protein_Origami/data/raw/Tsuboyama2023_DS2and3_20230416_ColFiltered.csv"
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+INPUT_CSV = (
+    PROJECT_ROOT
+    / "data"
+    / "raw"
+    / "Tsuboyama2023_DS2and3_20230416_ColFiltered.csv"
 )
-OUT_DIR = Path("/home/uoftshen/scratch/CHE1148_Team_Protein_Origami/data/processed")
+OUT_DIR = PROJECT_ROOT / "data" / "processed"
 
 SEED = 42
 VAL_FRAC_NON_FORCED = 0.10
@@ -277,7 +282,9 @@ def main():
         for row_idx, row in enumerate(reader):
             total_rows += 1
 
-            parent_wt_id, mapping_status = map_parent_wt_id(row, wt_candidates_by_cluster)
+            parent_wt_id, mapping_status = map_parent_wt_id(
+                row, wt_candidates_by_cluster
+            )
             mapping_status_counter[mapping_status] += 1
 
             key = (parent_wt_id, row["aa_seq"])
@@ -333,7 +340,9 @@ def main():
         )
         collapsed_rows.append(rep_out)
 
-    collapsed_rows = drop_unneeded_columns(collapsed_rows, cols_to_remove={"dna_seq"})
+    collapsed_rows = drop_unneeded_columns(
+        collapsed_rows, cols_to_remove={"dna_seq"}
+    )
 
     collapsed_fieldnames = list(collapsed_rows[0].keys())
 
@@ -354,26 +363,50 @@ def main():
     train_full = [phase1_rows[i] for i in train_idx]
     val_full = [phase1_rows[i] for i in val_idx]
 
-    train_sampled = stratified_downsample(train_full, TRAIN_SAMPLE_MAX, seed=SEED)
+    train_sampled = stratified_downsample(
+        train_full, TRAIN_SAMPLE_MAX, seed=SEED
+    )
 
-    train_full_out = drop_unneeded_columns(train_full, cols_to_remove=FINAL_DROP_COLUMNS)
-    val_full_out = drop_unneeded_columns(val_full, cols_to_remove=FINAL_DROP_COLUMNS)
-    train_sampled_out = drop_unneeded_columns(train_sampled, cols_to_remove=FINAL_DROP_COLUMNS)
+    train_full_out = drop_unneeded_columns(
+        train_full, cols_to_remove=FINAL_DROP_COLUMNS
+    )
+    val_full_out = drop_unneeded_columns(
+        val_full, cols_to_remove=FINAL_DROP_COLUMNS
+    )
+    train_sampled_out = drop_unneeded_columns(
+        train_sampled, cols_to_remove=FINAL_DROP_COLUMNS
+    )
 
-    phase1_fieldnames = [c for c in collapsed_fieldnames if c not in FINAL_DROP_COLUMNS]
-    write_csv(OUT_DIR / "tsuboyama_processed_train_full.csv", phase1_fieldnames, train_full_out)
-    write_csv(OUT_DIR / "tsuboyama_processed_val_full.csv", phase1_fieldnames, val_full_out)
+    phase1_fieldnames = [
+        c for c in collapsed_fieldnames if c not in FINAL_DROP_COLUMNS
+    ]
     write_csv(
-        OUT_DIR / "tsuboyama_processed_train_sampled.csv", phase1_fieldnames, train_sampled_out
+        OUT_DIR / "tsuboyama_processed_train_full.csv",
+        phase1_fieldnames,
+        train_full_out,
+    )
+    write_csv(
+        OUT_DIR / "tsuboyama_processed_val_full.csv",
+        phase1_fieldnames,
+        val_full_out,
+    )
+    write_csv(
+        OUT_DIR / "tsuboyama_processed_train_sampled.csv",
+        phase1_fieldnames,
+        train_sampled_out,
     )
 
     print("Processing complete.")
     print(f"Train full: {OUT_DIR / 'tsuboyama_processed_train_full.csv'}")
     print(f"Val full: {OUT_DIR / 'tsuboyama_processed_val_full.csv'}")
-    print(f"Train sampled: {OUT_DIR / 'tsuboyama_processed_train_sampled.csv'}")
+    print(
+        f"Train sampled: {OUT_DIR / 'tsuboyama_processed_train_sampled.csv'}"
+    )
     print(f"Rows (phase1 resolved single substitutions): {len(phase1_rows)}")
     print(
-        f"Train full rows: {len(train_full)} | Val full rows: {len(val_full)} | Train sampled rows: {len(train_sampled)}"
+        f"Train full rows: {len(train_full)} | "
+        f"Val full rows: {len(val_full)} | "
+        f"Train sampled rows: {len(train_sampled)}"
     )
 
 

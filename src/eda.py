@@ -6,7 +6,9 @@ import pandas as pd
 from .utils import ensure_dir
 
 
-def plot_hist(train: pd.Series, val: pd.Series, title: str, xlabel: str, outpath: str) -> None:
+def plot_hist(
+    train: pd.Series, val: pd.Series, title: str, xlabel: str, outpath: str
+) -> None:
     plt.figure()
     plt.hist(train.dropna().values, bins=60, alpha=0.5, label="train")
     plt.hist(val.dropna().values, bins=60, alpha=0.5, label="val")
@@ -33,7 +35,9 @@ def plot_top_counts(
     plt.close()
 
 
-def run_eda(train_df: pd.DataFrame, val_df: pd.DataFrame, out_dir: str) -> None:
+def run_eda(
+    train_df: pd.DataFrame, val_df: pd.DataFrame, out_dir: str
+) -> None:
     ensure_dir(out_dir)
 
     plot_hist(
@@ -52,7 +56,10 @@ def run_eda(train_df: pd.DataFrame, val_df: pd.DataFrame, out_dir: str) -> None:
         outpath=f"{out_dir}/len_hist.png",
     )
 
-    if "deltaG_95CI_high" in train_df.columns and "deltaG_95CI_low" in train_df.columns:
+    if (
+        "deltaG_95CI_high" in train_df.columns
+        and "deltaG_95CI_low" in train_df.columns
+    ):
         train_ci = train_df["deltaG_95CI_high"] - train_df["deltaG_95CI_low"]
         val_ci = val_df["deltaG_95CI_high"] - val_df["deltaG_95CI_low"]
         plot_hist(

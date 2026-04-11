@@ -8,6 +8,7 @@ __pycache__/
 
 # Large data files used for modelling
 *.pt
+*.csv
 
 # Distribution / packaging
 .Python

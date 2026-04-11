@@ -30,10 +30,9 @@ UNK_IDX = STOI["<UNK>"]
 
 def load_and_align(path: str) -> pd.DataFrame:
     """
-    Match your Colab cleaning:
-    - keep WT_cluster as string
-    - drop rows missing aa_seq/deltaG/WT_cluster
-    - add seq_len
+    Loads data from a CSV file, enforces the required schema, and cleans the data.
+    Drops rows missing essential fields ('aa_seq', 'deltaG', 'WT_cluster') and
+    computes the sequence length for each row.
     """
     df = pd.read_csv(path, low_memory=False)
 
@@ -54,11 +53,13 @@ def load_and_align(path: str) -> pd.DataFrame:
     return df
 
 
-def compute_max_len(train_df: pd.DataFrame, val_df: pd.DataFrame, q: float, cap: int) -> int:
+def compute_max_len(
+    train_df: pd.DataFrame, val_df: pd.DataFrame, q: float, cap: int
+) -> int:
     """
-    Match your Colab behavior:
-      MAX_LEN = int(max(train_q, val_q))
-      MAX_LEN = max(10, min(MAX_LEN, cap))
+    Computes the maximum sequence length to use for padding/truncating based on
+    the given quantile of sequence lengths in the training and validation datasets.
+    The computed length is bounded between 10 and the specified cap.
     """
     train_q = train_df["seq_len"].quantile(q)
     val_q = val_df["seq_len"].quantile(q)
@@ -69,16 +70,29 @@ def compute_max_len(train_df: pd.DataFrame, val_df: pd.DataFrame, q: float, cap:
 
 
 def encode_seq(seq: str) -> List[int]:
+    """
+    Encodes an amino acid sequence into a list of integer indices based on the vocabulary.
+    Unknown characters are mapped to the <UNK> token index.
+    """
     return [STOI.get(ch, UNK_IDX) for ch in seq]
 
 
 def pad_trunc(ids: List[int], max_len: int) -> List[int]:
+    """
+    Pads or truncates a list of token indices to match the specified maximum length.
+    Sequences longer than max_len are truncated; shorter sequences are right-padded with <PAD>.
+    """
     if len(ids) >= max_len:
         return ids[:max_len]
     return ids + [PAD_IDX] * (max_len - len(ids))
 
 
-class ProteinDataset(Dataset):
+class MLPProteinDataset(Dataset):
+    """
+    Dataset class for loading amino acid sequences and their corresponding deltaG values.
+    Handles encoding, padding, and truncating sequences to a fixed maximum length.
+    """
+
     def __init__(self, df: pd.DataFrame, max_len: int):
         self.seqs = df["aa_seq"].tolist()
         self.targets = df["deltaG"].astype(float).values
@@ -92,3 +106,80 @@ class ProteinDataset(Dataset):
         x = torch.tensor(ids, dtype=torch.long)
         y = torch.tensor(self.targets[idx], dtype=torch.float32)
         return x, y
+
+
+"""Dataset class for Protein VAE."""
+from typing import Any, Dict, Optional
+
+import numpy as np
+import torch
+from sklearn.preprocessing import StandardScaler
+from torch.utils.data import Dataset
+
+from .utils import robust_pt_load
+
+
+class VAEProteinDataset(Dataset):
+    """Dataset for loading memory-mapped embeddings and scaled labels."""
+
+    def __init__(
+        self,
+        pt_path: str,
+        mmap_path: str,
+        scaler: Optional[StandardScaler] = None,
+    ):
+        print(f"Loading Dataset: {pt_path}")
+        data_obj = robust_pt_load(pt_path)
+
+        shape = tuple(np.load(f"{mmap_path}_shape.npy"))
+        self.embeddings = np.memmap(
+            mmap_path, dtype="float32", mode="r", shape=shape
+        )
+
+        labels_np = np.array(data_obj["delta_g"]).reshape(-1, 1)
+        self.clusters = np.array(data_obj["wt_cluster"])
+        self.mut_types = [str(m).lower().strip() for m in data_obj["mut_type"]]
+
+        if "aa_seq" in data_obj:
+            self.sequences = data_obj["aa_seq"]
+        elif "aa_seq_full" in data_obj:
+            self.sequences = data_obj["aa_seq_full"]
+        else:
+            self.sequences = ["" for _ in range(len(self.embeddings))]
+
+        self.wt_lookup: Dict[str, Dict[str, Any]] = {}
+        for i, mtype in enumerate(self.mut_types):
+            if mtype in ["wt", "wildtype", "wild-type"]:
+                self.wt_lookup[self.clusters[i]] = {
+                    "dg": labels_np[i][0],
+                    "emb": self.embeddings[i],
+                    "seq": self.sequences[i],
+                }
+
+        all_unique_clusters = np.unique(self.clusters)
+        for c in all_unique_clusters:
+            if c not in self.wt_lookup:
+                idx = np.where(self.clusters == c)[0][0]
+                self.wt_lookup[c] = {
+                    "dg": labels_np[idx][0],
+                    "emb": self.embeddings[idx],
+                    "seq": self.sequences[idx],
+                }
+
+        if scaler is None:
+            self.scaler = StandardScaler()
+            self.labels_scaled = self.scaler.fit_transform(labels_np)
+        else:
+            self.scaler = scaler
+            self.labels_scaled = self.scaler.transform(labels_np)
+
+        self.labels_scaled = torch.from_numpy(self.labels_scaled).float()
+
+    def __len__(self) -> int:
+        return self.embeddings.shape[0]
+
+    def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
+        return {
+            "emb": torch.from_numpy(np.array(self.embeddings[idx])).float(),
+            "label_scaled": self.labels_scaled[idx],
+        }

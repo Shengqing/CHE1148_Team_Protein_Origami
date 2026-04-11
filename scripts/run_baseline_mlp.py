@@ -5,25 +5,32 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
+from pathlib import Path
+
+# Add project root to sys.path so 'src' can be imported easily
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 import torch
 from torch.utils.data import DataLoader
 
-from .data import (
+from src.data import (
     PAD_IDX,
     VOCAB,
-    ProteinDataset,
+    MLPProteinDataset,
     compute_max_len,
     load_and_align,
 )
-from .eda import run_eda
-from .model import MLPRegressor
-from .train import train_model
-from .utils import DeviceConfig, ensure_dir, load_yaml, set_seed
+from src.eda import run_eda
+from src.model import MLPRegressor
+from src.train import train_model
+from src.utils import DeviceConfig, ensure_dir, load_yaml, set_seed
 
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Train baseline MLP for ΔG prediction.")
+    p = argparse.ArgumentParser(
+        description="Train baseline MLP for ΔG prediction."
+    )
     p.add_argument("--config", type=str, default="configs/baseline_mlp.yaml")
     return p.parse_args()
 
@@ -59,8 +66,8 @@ def main() -> None:
     print(f"Saved EDA figures to: {fig_dir}")
 
     # Datasets + loaders (matches your Colab settings)
-    train_ds = ProteinDataset(train_df, max_len)
-    val_ds = ProteinDataset(val_df, max_len)
+    train_ds = MLPProteinDataset(train_df, max_len)
+    val_ds = MLPProteinDataset(val_df, max_len)
 
     pin = torch.cuda.is_available()
     bs = 512 if torch.cuda.is_available() else 256

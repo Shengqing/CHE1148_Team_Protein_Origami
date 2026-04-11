@@ -44,7 +44,9 @@ def run_epoch(
             optimizer.zero_grad(set_to_none=True)
             loss.backward()
             if clip_grad_norm is not None:
-                nn.utils.clip_grad_norm_(model.parameters(), max_norm=clip_grad_norm)
+                nn.utils.clip_grad_norm_(
+                    model.parameters(), max_norm=clip_grad_norm
+                )
             optimizer.step()
 
         losses.append(loss.item())
@@ -70,7 +72,9 @@ def train_model(
     factor: float,
 ) -> TrainResult:
     criterion = nn.MSELoss()
-    optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
+    optimizer = torch.optim.AdamW(
+        model.parameters(), lr=lr, weight_decay=weight_decay
+    )
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode="min", factor=factor, patience=patience
     )
@@ -83,22 +87,32 @@ def train_model(
             model, train_loader, device, criterion, optimizer, clip_grad_norm
         )
         va_loss, va_metrics = run_epoch(
-            model, val_loader, device, criterion, optimizer=None, clip_grad_norm=None
+            model,
+            val_loader,
+            device,
+            criterion,
+            optimizer=None,
+            clip_grad_norm=None,
         )
 
         scheduler.step(va_loss)
 
         print(
             f"Epoch {epoch:02d} | "
-            f"train loss {tr_loss:.4f} MAE {tr_metrics.mae:.4f} RMSE {tr_metrics.rmse:.4f} "
-            f"R2 {tr_metrics.r2:.4f} Spearman {tr_metrics.spearman:.4f} | "
-            f"val loss {va_loss:.4f} MAE {va_metrics.mae:.4f} RMSE {va_metrics.rmse:.4f} "
-            f"R2 {va_metrics.r2:.4f} Spearman {va_metrics.spearman:.4f}"
+            f"train loss {tr_loss:.4f} MAE {tr_metrics.mae:.4f} "
+            f"RMSE {tr_metrics.rmse:.4f} R2 {tr_metrics.r2:.4f} "
+            f"Kendall {tr_metrics.kendall:.4f} | "
+            f"val loss {va_loss:.4f} MAE {va_metrics.mae:.4f} "
+            f"RMSE {va_metrics.rmse:.4f} R2 {va_metrics.r2:.4f} "
+            f"Kendall {va_metrics.kendall:.4f}"
         )
 
         if va_metrics.mae < best_val_mae:
             best_val_mae = va_metrics.mae
-            best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
+            best_state = {
+                k: v.detach().cpu().clone()
+                for k, v in model.state_dict().items()
+            }
 
     if best_state is None:
         raise RuntimeError("Training finished but no best_state was recorded.")

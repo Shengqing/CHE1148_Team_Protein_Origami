@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 import argparse
 import csv
-from dataclasses import dataclass
 import json
 import logging
-from pathlib import Path
 import random
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
 import torch
@@ -46,7 +46,9 @@ class EmbeddingDataset(Dataset):
 
 
 class MLPRegressor(nn.Module):
-    def __init__(self, in_dim: int, hidden_dim: int = 1024, dropout: float = 0.15):
+    def __init__(
+        self, in_dim: int, hidden_dim: int = 1024, dropout: float = 0.15
+    ):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(in_dim, hidden_dim),
@@ -80,8 +82,12 @@ class ESM2Embedder:
         self.device = device
         self.logger = logger
         cache_dir_str = str(cache_dir) if cache_dir is not None else None
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=cache_dir_str)
-        self.model = AutoModel.from_pretrained(model_name, cache_dir=cache_dir_str)
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            model_name, cache_dir=cache_dir_str
+        )
+        self.model = AutoModel.from_pretrained(
+            model_name, cache_dir=cache_dir_str
+        )
         self.model.to(device)
         self.model.eval()
         for p in self.model.parameters():
@@ -89,10 +95,14 @@ class ESM2Embedder:
 
         hidden_size = getattr(self.model.config, "hidden_size", None)
         if hidden_size is None:
-            raise RuntimeError("Could not determine hidden_size from ESM2 model config")
+            raise RuntimeError(
+                "Could not determine hidden_size from ESM2 model config"
+            )
         self.embedding_dim = int(hidden_size)
 
-    def embed_sequences_pooled(self, seqs: Sequence[str], batch_size: int = 16) -> torch.Tensor:
+    def embed_sequences_pooled(
+        self, seqs: Sequence[str], batch_size: int = 16
+    ) -> torch.Tensor:
         pooled_out = []
         with torch.no_grad():
             for i in range(0, len(seqs), batch_size):
@@ -120,7 +130,9 @@ class ESM2Embedder:
                         h_seq = h[row_idx, valid, :]
                     pooled = h_seq.mean(dim=0)
                     batch_pooled.append(pooled)
-                pooled_out.append(torch.stack(batch_pooled, dim=0).detach().cpu())
+                pooled_out.append(
+                    torch.stack(batch_pooled, dim=0).detach().cpu()
+                )
         return torch.cat(pooled_out, dim=0)
 
 
@@ -226,7 +238,7 @@ def rankdata(values: List[float]) -> List[float]:
     return ranks
 
 
-def spearman(pred: torch.Tensor, y: torch.Tensor) -> float:
+def kendall(pred: torch.Tensor, y: torch.Tensor) -> float:
     px = pred.detach().cpu().tolist()
     py = y.detach().cpu().tolist()
     rx = torch.tensor(rankdata(px), dtype=torch.float32)
@@ -234,7 +246,9 @@ def spearman(pred: torch.Tensor, y: torch.Tensor) -> float:
     return pearson(rx, ry)
 
 
-def regression_metrics_from_lists(y_true_list: List[float], y_pred_list: List[float]) -> dict:
+def regression_metrics_from_lists(
+    y_true_list: List[float], y_pred_list: List[float]
+) -> dict:
     if len(y_true_list) == 0:
         return {
             "n": 0,
@@ -242,7 +256,7 @@ def regression_metrics_from_lists(y_true_list: List[float], y_pred_list: List[fl
             "rmse": None,
             "r2": None,
             "pearson": None,
-            "spearman": None,
+            "kendall": None,
         }
 
     y_true = torch.tensor(y_true_list, dtype=torch.float32)
@@ -253,7 +267,7 @@ def regression_metrics_from_lists(y_true_list: List[float], y_pred_list: List[fl
         "rmse": rmse(y_pred, y_true),
         "r2": r2_score(y_pred, y_true),
         "pearson": pearson(y_pred, y_true),
-        "spearman": spearman(y_pred, y_true),
+        "kendall": kendall(y_pred, y_true),
     }
 
 
@@ -304,10 +318,14 @@ def precompute_embeddings(
     out_path.parent.mkdir(parents=True, exist_ok=True)
     seqs = [r.aa_seq for r in records]
     logger.info("Precomputing embeddings: %s n=%d", out_path, len(seqs))
-    emb = embedder.embed_sequences_pooled(seqs, batch_size=batch_size).to(torch.float32)
+    emb = embedder.embed_sequences_pooled(seqs, batch_size=batch_size).to(
+        torch.float32
+    )
     payload = {
         "seq_embeddings": emb,
-        "delta_g": torch.tensor([r.delta_g for r in records], dtype=torch.float32),
+        "delta_g": torch.tensor(
+            [r.delta_g for r in records], dtype=torch.float32
+        ),
         "wt_cluster": [r.wt_cluster for r in records],
         "mut_type": [r.mut_type for r in records],
         "aa_seq": seqs,
@@ -348,7 +366,7 @@ def eval_regression(
         "rmse": rmse(p_all, y_all),
         "r2": r2_score(p_all, y_all),
         "pearson": pearson(p_all, y_all),
-        "spearman": spearman(p_all, y_all),
+        "kendall": kendall(p_all, y_all),
         "n": int(y_all.shape[0]),
     }
     if return_arrays:
@@ -376,7 +394,10 @@ def train_one_epoch(model, loader, optimizer, device):
 
 
 def make_predict_fn(
-    model: nn.Module, embedder: ESM2Embedder, device: torch.device, batch_size: int
+    model: nn.Module,
+    embedder: ESM2Embedder,
+    device: torch.device,
+    batch_size: int,
 ):
     def _predict(seqs: Sequence[str]) -> List[float]:
         if len(seqs) == 0:
@@ -386,9 +407,9 @@ def make_predict_fn(
         with torch.no_grad():
             for i in range(0, len(seqs), batch_size):
                 batch = seqs[i : i + batch_size]
-                x = embedder.embed_sequences_pooled(batch, batch_size=min(batch_size, 32)).to(
-                    device
-                )
+                x = embedder.embed_sequences_pooled(
+                    batch, batch_size=min(batch_size, 32)
+                ).to(device)
                 pred = model(x).detach().cpu().tolist()
                 out_all.extend(pred)
         return out_all
@@ -407,7 +428,9 @@ def evaluate_generated_vs_observed(
     unparsed_rows = 0
 
     for rec in val_records:
-        cluster_row_counts[rec.wt_cluster] = cluster_row_counts.get(rec.wt_cluster, 0) + 1
+        cluster_row_counts[rec.wt_cluster] = (
+            cluster_row_counts.get(rec.wt_cluster, 0) + 1
+        )
         wt_seq = reconstruct_wt_from_mutant(rec.aa_seq, rec.mut_type)
         if wt_seq is None:
             unparsed_rows += 1
@@ -419,7 +442,9 @@ def evaluate_generated_vs_observed(
         cluster_wt_counts[cluster] = cluster_wt_counts.get(cluster, 0) + 1
 
     all_k = sorted({k for k in list(k_list) + [top_k] if k > 0})
-    hit_stats = {k: {"matched": 0, "total": 0, "wt_with_any_match": 0} for k in all_k}
+    hit_stats = {
+        k: {"matched": 0, "total": 0, "wt_with_any_match": 0} for k in all_k
+    }
 
     top3_wt_improve_total = 0
     top3_wt_improve_by_cluster: Dict[str, Dict[str, float]] = {}
@@ -473,7 +498,9 @@ def evaluate_generated_vs_observed(
         top3_has_lower_than_wt = any(cand_pred[i] < wt_pred for i in top3_idx)
         if top3_has_lower_than_wt:
             top3_wt_improve_total += 1
-            top3_wt_improve_by_cluster[cluster]["n_with_top3_lower_than_wt"] += 1
+            top3_wt_improve_by_cluster[cluster][
+                "n_with_top3_lower_than_wt"
+            ] += 1
 
         for i, seq in enumerate(candidates):
             pred_val = cand_pred[i]
@@ -486,10 +513,14 @@ def evaluate_generated_vs_observed(
                 exhaustive_by_cluster[cluster]["unmatched_n"] += 1
                 if pred_val > obs_max:
                     exhaustive_unmatched_above_obs_max += 1
-                    exhaustive_by_cluster[cluster]["unmatched_above_obs_max_n"] += 1
+                    exhaustive_by_cluster[cluster][
+                        "unmatched_above_obs_max_n"
+                    ] += 1
                 if pred_val < obs_min:
                     exhaustive_unmatched_below_obs_min += 1
-                    exhaustive_by_cluster[cluster]["unmatched_below_obs_min_n"] += 1
+                    exhaustive_by_cluster[cluster][
+                        "unmatched_below_obs_min_n"
+                    ] += 1
 
         for k in all_k:
             top_idx = idx_sorted[:k]
@@ -505,7 +536,11 @@ def evaluate_generated_vs_observed(
             is_matched = seq in obs_map
             true_dg = obs_map.get(seq)
             true_rank = rank_map.get(seq)
-            rank_pct = (100.0 * true_rank / n_obs) if true_rank is not None and n_obs > 0 else None
+            rank_pct = (
+                (100.0 * true_rank / n_obs)
+                if true_rank is not None and n_obs > 0
+                else None
+            )
 
             if is_matched and true_dg is not None and true_rank is not None:
                 matched_true_delta_g.append(true_dg)
@@ -539,13 +574,21 @@ def evaluate_generated_vs_observed(
         hit_curve.append(
             {
                 "k": k,
-                "match_rate_over_generated_pct": 100.0 * hit_stats[k]["matched"] / total,
+                "match_rate_over_generated_pct": 100.0
+                * hit_stats[k]["matched"]
+                / total,
                 "wt_with_any_match": hit_stats[k]["wt_with_any_match"],
-                "wt_with_any_match_pct": 100.0 * hit_stats[k]["wt_with_any_match"] / wt_total,
+                "wt_with_any_match_pct": 100.0
+                * hit_stats[k]["wt_with_any_match"]
+                / wt_total,
             }
         )
 
-    max_wt_hit = max(x["wt_with_any_match_pct"] for x in hit_curve) if hit_curve else 0.0
+    max_wt_hit = (
+        max(x["wt_with_any_match_pct"] for x in hit_curve)
+        if hit_curve
+        else 0.0
+    )
     suggested_k = top_k
     for item in hit_curve:
         if item["wt_with_any_match_pct"] >= 0.9 * max_wt_hit:
@@ -575,8 +618,12 @@ def evaluate_generated_vs_observed(
         exhaustive_by_cluster_summary[cluster] = {
             "matched_n": int(vals["matched_n"]),
             "unmatched_n": unmatched_n,
-            "unmatched_above_obs_max_n": int(vals["unmatched_above_obs_max_n"]),
-            "unmatched_below_obs_min_n": int(vals["unmatched_below_obs_min_n"]),
+            "unmatched_above_obs_max_n": int(
+                vals["unmatched_above_obs_max_n"]
+            ),
+            "unmatched_below_obs_min_n": int(
+                vals["unmatched_below_obs_min_n"]
+            ),
             "pct_unmatched_above_obs_max": 100.0
             * vals["unmatched_above_obs_max_n"]
             / max(unmatched_n, 1),
@@ -593,8 +640,12 @@ def evaluate_generated_vs_observed(
         "n_validation_rows": len(val_records),
         "n_unparsed_rows_for_wt_reconstruction": unparsed_rows,
         "n_unique_wt_proteins": n_wt,
-        "cluster_row_counts": dict(sorted(cluster_row_counts.items(), key=cluster_sort_key)),
-        "cluster_wt_counts": dict(sorted(cluster_wt_counts.items(), key=cluster_sort_key)),
+        "cluster_row_counts": dict(
+            sorted(cluster_row_counts.items(), key=cluster_sort_key)
+        ),
+        "cluster_wt_counts": dict(
+            sorted(cluster_wt_counts.items(), key=cluster_sort_key)
+        ),
         "ood_clusters": {
             "71": {
                 "row_count": cluster_row_counts.get("71", 0),
@@ -608,8 +659,12 @@ def evaluate_generated_vs_observed(
         "top3_vs_wt_predicted_deltaG": {
             "n_proteins": n_wt,
             "n_with_top3_lower_than_wt": top3_wt_improve_total,
-            "pct_with_top3_lower_than_wt": 100.0 * top3_wt_improve_total / max(n_wt, 1),
-            "by_cluster": dict(sorted(top3_by_cluster_pct.items(), key=cluster_sort_key)),
+            "pct_with_top3_lower_than_wt": 100.0
+            * top3_wt_improve_total
+            / max(n_wt, 1),
+            "by_cluster": dict(
+                sorted(top3_by_cluster_pct.items(), key=cluster_sort_key)
+            ),
             "ood_cluster_breakdown": {
                 "71": top3_by_cluster_pct.get(
                     "71",
@@ -643,7 +698,9 @@ def evaluate_generated_vs_observed(
                 / max(exhaustive_unmatched_total, 1),
             },
             "by_cluster": dict(
-                sorted(exhaustive_by_cluster_summary.items(), key=cluster_sort_key)
+                sorted(
+                    exhaustive_by_cluster_summary.items(), key=cluster_sort_key
+                )
             ),
             "ood_cluster_breakdown": {
                 "71": exhaustive_by_cluster_summary.get(
@@ -675,15 +732,21 @@ def evaluate_generated_vs_observed(
             "n_generated": topk_total,
             "n_matched": topk_match,
             "n_unmatched": topk_total - topk_match,
-            "match_rate_over_generated_pct": 100.0 * topk_match / max(topk_total, 1),
+            "match_rate_over_generated_pct": 100.0
+            * topk_match
+            / max(topk_total, 1),
             "n_wt_with_any_match": topk_hits["wt_with_any_match"],
-            "pct_wt_with_any_match": 100.0 * topk_hits["wt_with_any_match"] / max(n_wt, 1),
+            "pct_wt_with_any_match": 100.0
+            * topk_hits["wt_with_any_match"]
+            / max(n_wt, 1),
         },
         "matched_variant_quality": {
             "n_matched": len(matched_true_delta_g),
-            "mean_true_deltaG": (sum(matched_true_delta_g) / len(matched_true_delta_g))
-            if matched_true_delta_g
-            else None,
+            "mean_true_deltaG": (
+                (sum(matched_true_delta_g) / len(matched_true_delta_g))
+                if matched_true_delta_g
+                else None
+            ),
             "median_true_rank": (
                 float(np.median(np.array(matched_true_rank)))
                 if matched_true_rank and HAS_NUMPY
@@ -722,7 +785,9 @@ def write_generated_details(path: Path, rows: Sequence[dict]):
             w.writerow(row)
 
 
-def compare_with_baseline(baseline_metrics_path: Path, current_val_metrics: dict, out_path: Path):
+def compare_with_baseline(
+    baseline_metrics_path: Path, current_val_metrics: dict, out_path: Path
+):
     baseline_val = None
     if baseline_metrics_path.exists():
         with baseline_metrics_path.open() as f:
@@ -737,7 +802,7 @@ def compare_with_baseline(baseline_metrics_path: Path, current_val_metrics: dict
     }
 
     if baseline_val is not None:
-        keys = ["mae", "rmse", "r2", "pearson", "spearman"]
+        keys = ["mae", "rmse", "r2", "pearson", "kendall"]
         delta = {}
         for k in keys:
             if k in baseline_val and k in current_val_metrics:
@@ -750,7 +815,9 @@ def compare_with_baseline(baseline_metrics_path: Path, current_val_metrics: dict
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Train ESM2-650M regressor for Protein Origami")
+    parser = argparse.ArgumentParser(
+        description="Train ESM2-650M regressor for Protein Origami"
+    )
     parser.add_argument(
         "--train_csv",
         type=Path,
@@ -768,7 +835,9 @@ def main():
     parser.add_argument(
         "--out_dir",
         type=Path,
-        default=Path("/home/uoftshen/scratch/CHE1148_Team_Protein_Origami/results/esm2_650m"),
+        default=Path(
+            "/home/uoftshen/scratch/CHE1148_Team_Protein_Origami/results/esm2_650m"
+        ),
     )
     parser.add_argument(
         "--embedding_dir",
@@ -793,7 +862,9 @@ def main():
     parser.add_argument("--dev_frac", type=float, default=0.1)
     parser.add_argument("--gen_top_k", type=int, default=10)
     parser.add_argument("--eval_k_list", type=str, default="1,3,5,10,20,50")
-    parser.add_argument("--esm_model_name", type=str, default="facebook/esm2_t33_650M_UR50D")
+    parser.add_argument(
+        "--esm_model_name", type=str, default="facebook/esm2_t33_650M_UR50D"
+    )
     parser.add_argument("--esm_cache_dir", type=Path, default=None)
     parser.add_argument("--embed_batch_size", type=int, default=16)
     parser.add_argument("--predict_batch_size", type=int, default=256)
@@ -810,8 +881,12 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logger.info("mode=%s device=%s", args.mode, device)
 
-    train_embed_path = args.train_embed_path or (args.embedding_dir / "train_sampled_esm2_650m.pt")
-    val_embed_path = args.val_embed_path or (args.embedding_dir / "val_full_esm2_650m.pt")
+    train_embed_path = args.train_embed_path or (
+        args.embedding_dir / "train_sampled_esm2_650m.pt"
+    )
+    val_embed_path = args.val_embed_path or (
+        args.embedding_dir / "val_full_esm2_650m.pt"
+    )
 
     need_precompute = (
         args.prepare_embeddings
@@ -824,15 +899,30 @@ def main():
     embedder = None
 
     if need_precompute:
-        train_records = read_records(args.train_csv, max_rows=args.max_rows_train)
+        train_records = read_records(
+            args.train_csv, max_rows=args.max_rows_train
+        )
         val_records = read_records(args.val_csv, max_rows=args.max_rows_val)
         embedder = ESM2Embedder(
-            args.esm_model_name, device=device, cache_dir=args.esm_cache_dir, logger=logger
+            args.esm_model_name,
+            device=device,
+            cache_dir=args.esm_cache_dir,
+            logger=logger,
         )
         precompute_embeddings(
-            embedder, train_records, train_embed_path, args.embed_batch_size, logger
+            embedder,
+            train_records,
+            train_embed_path,
+            args.embed_batch_size,
+            logger,
         )
-        precompute_embeddings(embedder, val_records, val_embed_path, args.embed_batch_size, logger)
+        precompute_embeddings(
+            embedder,
+            val_records,
+            val_embed_path,
+            args.embed_batch_size,
+            logger,
+        )
 
     if args.mode == "precompute_only":
         logger.info("Precompute-only mode complete.")
@@ -882,7 +972,9 @@ def main():
     )
 
     train_loader = DataLoader(
-        EmbeddingDataset(train_embeddings[train_idx], train_targets[train_idx]),
+        EmbeddingDataset(
+            train_embeddings[train_idx], train_targets[train_idx]
+        ),
         batch_size=args.batch_size,
         shuffle=True,
     )
@@ -898,9 +990,9 @@ def main():
     )
 
     in_dim = int(train_embeddings.shape[1])
-    model = MLPRegressor(in_dim=in_dim, hidden_dim=args.mlp_hidden_dim, dropout=args.dropout).to(
-        device
-    )
+    model = MLPRegressor(
+        in_dim=in_dim, hidden_dim=args.mlp_hidden_dim, dropout=args.dropout
+    ).to(device)
 
     history = []
     if args.mode == "train_eval":
@@ -908,7 +1000,9 @@ def main():
         best_dev_rmse = float("inf")
         best_state = None
         for epoch in range(1, args.epochs + 1):
-            train_loss = train_one_epoch(model, train_loader, optimizer, device)
+            train_loss = train_one_epoch(
+                model, train_loader, optimizer, device
+            )
             dev_metrics = eval_regression(model, dev_loader, device)
             history.append(
                 {
@@ -918,22 +1012,25 @@ def main():
                     "dev_mae": dev_metrics["mae"],
                     "dev_r2": dev_metrics["r2"],
                     "dev_pearson": dev_metrics["pearson"],
-                    "dev_spearman": dev_metrics["spearman"],
+                    "dev_kendall": dev_metrics["kendall"],
                 }
             )
             logger.info(
-                "epoch=%d train_mse=%.4f dev_rmse=%.4f dev_mae=%.4f dev_r2=%.4f dev_pearson=%.4f dev_spearman=%.4f",
+                "epoch=%d train_mse=%.4f dev_rmse=%.4f dev_mae=%.4f dev_r2=%.4f dev_pearson=%.4f dev_kendall=%.4f",
                 epoch,
                 train_loss,
                 dev_metrics["rmse"],
                 dev_metrics["mae"],
                 dev_metrics["r2"],
                 dev_metrics["pearson"],
-                dev_metrics["spearman"],
+                dev_metrics["kendall"],
             )
             if dev_metrics["rmse"] < best_dev_rmse:
                 best_dev_rmse = dev_metrics["rmse"]
-                best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
+                best_state = {
+                    k: v.detach().cpu().clone()
+                    for k, v in model.state_dict().items()
+                }
 
         if best_state is not None:
             model.load_state_dict(best_state)
@@ -951,24 +1048,37 @@ def main():
             )
             logger.info("Saved model checkpoint: %s", save_path)
     else:
-        model_path = args.model_path or (args.out_dir / "esm2_regressor_model.pt")
+        model_path = args.model_path or (
+            args.out_dir / "esm2_regressor_model.pt"
+        )
         ckpt = torch.load(model_path, map_location="cpu")
         model.load_state_dict(ckpt["state_dict"])
         logger.info("Loaded model checkpoint: %s", model_path)
 
-    val_metrics_full = eval_regression(model, val_loader, device, return_arrays=True)
-    val_metrics = {k: v for k, v in val_metrics_full.items() if k not in {"y_true", "y_pred"}}
+    val_metrics_full = eval_regression(
+        model, val_loader, device, return_arrays=True
+    )
+    val_metrics = {
+        k: v
+        for k, v in val_metrics_full.items()
+        if k not in {"y_true", "y_pred"}
+    }
 
     if embedder is None:
         embedder = ESM2Embedder(
-            args.esm_model_name, device=device, cache_dir=args.esm_cache_dir, logger=logger
+            args.esm_model_name,
+            device=device,
+            cache_dir=args.esm_cache_dir,
+            logger=logger,
         )
 
     if args.skip_generative_eval:
         gen_metrics = {"skipped": True}
         gen_rows = []
     else:
-        eval_k_list = [int(x.strip()) for x in args.eval_k_list.split(",") if x.strip()]
+        eval_k_list = [
+            int(x.strip()) for x in args.eval_k_list.split(",") if x.strip()
+        ]
         predict_fn = make_predict_fn(
             model, embedder, device=device, batch_size=args.predict_batch_size
         )
@@ -979,7 +1089,8 @@ def main():
             k_list=eval_k_list,
         )
         write_generated_details(
-            args.out_dir / f"generated_top{args.gen_top_k}_vs_val_details.csv", gen_rows
+            args.out_dir / f"generated_top{args.gen_top_k}_vs_val_details.csv",
+            gen_rows,
         )
 
     report = {
@@ -994,7 +1105,11 @@ def main():
             "dev_frac": args.dev_frac,
             "device": str(device),
             "gen_top_k": args.gen_top_k,
-            "eval_k_list": [int(x.strip()) for x in args.eval_k_list.split(",") if x.strip()],
+            "eval_k_list": [
+                int(x.strip())
+                for x in args.eval_k_list.split(",")
+                if x.strip()
+            ],
             "embedding_model": args.esm_model_name,
             "embedding_train_path": str(train_embed_path),
             "embedding_val_path": str(val_embed_path),
