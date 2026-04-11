@@ -1,211 +1,187 @@
-# Final Report TA Feedback Execution Reminder:
+# Protein Origami: Energetics-Informed Generative Modeling for Stable Protein Mutants
 
-- Careful with the discrepancies (the MAE in the abstract differs from Table 1).
-- Split Methods and Results into two separate sections.
-- Narrow it to a single architecture and make sure to connect your choice to your project's motivation.
-- Add ablation studies of the hyperparameters of your selected architecture.
-- Focus on evaluating generation quality for the final paper; include metrics to quantify sequence validity and novelty.
-- Quantify and report variance where applicable.
-- Use a consistent color palette for the final paper's figs.
+This repository contains the code and experiments for the CHE1148 Team Protein Origami project.
+The central objective is to model protein folding stability from sequence and use that signal in a
+generative workflow for proposing stabilizing mutants.
 
-# Protein Origami: Energetics-Informed Modeling for Protein Stability
 
-This repository contains the code used for the CHE1148 Protein Origami project on learning protein stability landscapes from sequence, with an emphasis on **experimentally measured folding free energy** ($\Delta G$). The workflow combines data curation, exploratory analysis, discriminative baselines, ESM2 embedding pipelines, graph-based models, and generative evaluation utilities.
+## Project Scope
 
-The accompanying project report is available as `Interim_Final_ProteinOrigami.pdf` submitted through the Quercus. 
+Protein structure predictors can be highly confident while still missing thermodynamic stability under
+experimental conditions. This project focuses on experimentally measured folding free energy ($\Delta G$)
+and frames stability design as both a prediction and generation problem.
 
-## 1) Project Summary
+The modeling strategy in the draft centers on a semi-supervised VAE (ss-VAE), with two baselines:
+- Predictive baseline: MLP on ESM2-650M embeddings
+- Generative baseline: random single-residue mutation followed by feasibility mapping to observed data
 
-### Problem
-Protein structure predictors can produce plausible structures in silico while still failing thermodynamic stability in vitro. This project focuses on learning a direct mapping from sequence to measured stability and using that signal to guide mutation proposals.
+## Data and Curation
 
-### Dataset
-- Source: `Tsuboyama2023_DS2and3_20230416_ColFiltered.csv` (raw) - 238MB (so not uploaded to Git)
-- Scale: ~776k experimental records in the raw table
-- Curated scope used here:
-	- replicate collapsing and WT mapping by cluster
-	- single-substitution filtering for initial modeling
-	- cluster-aware splitting with deliberate OOD clusters (`71`, `213`) forced into validation
+Source dataset:
+- Tsuboyama et al. mega-scale stability dataset (raw scale: about 776k measurements)
 
-### Core modeling tracks in this repo
-- **Baseline MLP** on tokenized amino-acid sequences (`src/run_baseline_mlp.py`)
-- **GraphNet + generative evaluation** (`src/train_graphnet_generative.py`)
-- **ESM2-650M pooled embeddings + MLP regressor** (`src/train_esm2_regressor.py`)
-- **ESM2-650M residue embeddings + linear/attention graph models** (`src/train_esm_graph_models.py`)
-- **VAE prototype (notebook)**: `notebooks/VAE.ipynb`
+Curated pipeline (implemented in src/process_tsuboyama_phase1.py):
+- WT reconstruction and cluster-aware organization
+- replicate handling with confidence interval fields
+- single-substitution filtering for phase-1 modeling
+- cluster-aware train/validation construction
+- forced OOD validation clusters: 71 and 213
 
-## 2) Repository Layout
+Primary processed artifacts:
+- data/processed/tsuboyama_processed_train_full.csv
+- data/processed/tsuboyama_processed_train_sampled.csv
+- data/processed/tsuboyama_processed_val_full.csv
+
+Representation used for predictive/generative modeling:
+- ESM2-650M pooled embeddings (1280-dimensional per sequence)
+
+## Repository Map
 
 ```text
-configs/                     # YAML configs (baseline MLP)
+configs/                      baseline configuration
 data/
-	raw/                       # Raw Tsuboyama CSV
-	processed/                 # Curated train/val CSV + embedding .pt payloads
+  processed/                  curated CSV and embedding payloads
+  interim/                    intermediate experiment files and generated datasets
 notebooks/
-	VAE.ipynb                  # VAE prototype and latent optimization experiments
-results/                     # Metrics, checkpoints, figures, logs
-scripts/                     # Batch job launcher scripts
+  VAE.ipynb                   ss-VAE prototype, ablations, and analysis plots
+results/                      metrics, logs, generated figures, evaluation outputs
+scripts/                      SLURM launchers and utility render scripts
 src/
-	process_tsuboyama_phase1.py
-	eda.py
-	data.py
-	model.py
-	train.py
-	run_baseline_mlp.py
-	train_graphnet_generative.py
-	train_esm2_regressor.py
-	train_esm_graph_models.py
+  process_tsuboyama_phase1.py
+  run_baseline_mlp.py
+  train_graphnet_generative.py
+  train_esm2_regressor.py
+  train_esm_graph_models.py
+  generate_random_single_mutant_mapping.py
+  embed_esm2_from_pt.py
 ```
 
-## 3) Data Processing Pipeline
+## Methods Summary
 
-Primary curation logic lives in `src/process_tsuboyama_phase1.py`.
+### 1) Predictive baseline (MLP)
 
-### What the processor does
-1. Builds WT candidates per cluster and maps each variant to a parent WT.
-2. Collapses replicate measurements using inverse-variance weighting from reported 95% CI.
-3. Keeps resolved **single substitutions** for phase-1 modeling.
-4. Splits by `WT_cluster` with cluster-aware stratification.
-5. Forces clusters `71` and `213` into validation for OOD-like testing.
-6. Produces:
-	 - `data/processed/tsuboyama_processed_train_full.csv`
-	 - `data/processed/tsuboyama_processed_val_full.csv`
-	 - `data/processed/tsuboyama_processed_train_sampled.csv` (60k stratified sample)
+Baseline MLP consumes 1280-D ESM2 embeddings and predicts $\Delta G$.
+The draft reports strong ranking performance and stable seed-to-seed behavior.
 
-### Run
+Entry point:
+- src/run_baseline_mlp.py
+
+### 2) Generative baseline (random single mutation)
+
+For each WT sequence, one amino-acid position is sampled uniformly, and one alternative residue is
+sampled from the remaining 19 amino acids. The generated variant is mapped back to curated full data as
+a feasibility proxy.
+
+Entry point:
+- src/generate_random_single_mutant_mapping.py
+
+### 3) ss-VAE prototype
+
+The VAE prototype in notebooks/VAE.ipynb uses ESM2 embeddings and a multi-objective loss:
+- reconstruction term
+- KL regularization term
+- property prediction term for stability
+
+It also supports latent-space optimization for stability-guided candidate search.
+
+Notebook-embedded implementation details:
+- Input representation:
+  - 1280-D ESM2 pooled embeddings from .pt payloads
+  - paired amino-acid sequences for sequence-side processing
+- Default model/training constants in the notebook:
+  - INPUT_DIM=1280, LATENT_DIM=256, HIDDEN_DIM=512
+  - NUM_EPOCHS=100, BATCH_SIZE=128, PATIENCE=7
+  - LEARNING_RATE=8e-5, DROPOUT_RATE=0.2, WEIGHT_DECAY=2e-6
+  - OPTIM_STEPS=25, OPTIM_LR=0.05 for latent-space optimization
+- VAE architecture in notebook:
+  - Encoder: Linear -> BatchNorm -> ReLU -> Dropout -> Linear(2*latent)
+  - Decoder: latent -> hidden/2 -> hidden -> reconstructed 1280-D embedding
+  - Sequence head: projection to per-position logits (21-token output space)
+  - Regressor head: latent -> scalar stability prediction
+- Current training objective used in train_and_validate:
+  - reconstruction MSE + 0.1 * KL + prediction MSE
+  - validation monitoring uses prediction MSE with early stopping
+  - epoch logging includes RMSE, R2, and Kendall Tau on inverse-scaled predictions
+- Additional notebook experiment block:
+  - latent dimension sweep over [64, 128, 256, 512]
+  - 5 random initiations per latent dimension
+  - reports mean and standard deviation for Kendall Tau and RMSE
+
+Implementation note:
+- The notebook defines RL_WEIGHT/KL_WEIGHT/PL_WEIGHT/SEQ_WEIGHT constants for configurable
+  multi-term objectives, but the currently active train_and_validate loop uses a fixed weighted
+  objective (recon + 0.1*KL + pred) and does not currently include sequence cross-entropy in loss.
+
+## Reported Results (From Draft)
+
+### Baseline MLP (validation, 5 seeds)
+- RMSE: 1.355 ± 0.032
+- R2: 0.517 ± 0.023
+- Kendall Tau: 0.5483 ± 0.0166
+- Spearman: 0.719 ± 0.021
+
+### VAE regressor head (validation)
+- MAE: 0.8007
+- RMSE: 1.1447
+- R2: 0.6556
+- Spearman: 0.7874
+
+### Generative baseline
+- Random-mutation feasibility mapping remains consistently above zero across repeated runs,
+  providing a baseline for comparing learned generative methods.
+
+## Reproducing Core Workflows
+
+### Data processing
+
 ```bash
 python src/process_tsuboyama_phase1.py
 ```
 
-## 4) Exploratory Data Analysis (EDA)
+### Baseline MLP
 
-EDA utilities are implemented in `src/eda.py` and called by the baseline pipeline.
-
-Generated diagnostics include:
-- train/val $\Delta G$ histograms
-- sequence-length histograms
-- CI-width histograms (if CI columns are present)
-- top WT-cluster frequency plots
-- split sanity report (cluster overlap counts)
-
-## 5) Models and Training Scripts
-
-### A. Baseline sequence MLP
-Files: `src/data.py`, `src/model.py`, `src/train.py`, `src/run_baseline_mlp.py`
-
-Pipeline:
-- amino-acid tokenization and padding/truncation
-- learned residue embedding
-- masked mean pooling
-- MLP regression head
-
-Run:
 ```bash
 python -m src.run_baseline_mlp --config configs/baseline_mlp.yaml
 ```
 
-### B. GraphNet + generative retrieval evaluation
-File: `src/train_graphnet_generative.py`
+### ESM2 embedding + regressor
 
-Model:
-- 1D residue graph (adjacent-position edges)
-- learned amino-acid + positional embeddings
-- stacked message-passing GraphNet layers
-- masked mean pooling and scalar $\Delta G$ prediction
-
-Includes:
-- regression evaluation
-- mutation proposal/generative retrieval diagnostics against observed validation variants
-- top-k match analysis and summary plots
-
-Run:
-```bash
-python src/train_graphnet_generative.py \
-	--train_csv data/processed/tsuboyama_processed_train_sampled.csv \
-	--val_csv data/processed/tsuboyama_processed_val_full.csv \
-	--out_dir results/graphnet
-```
-
-### C. ESM2-650M pooled embeddings + MLP regressor
-File: `src/train_esm2_regressor.py`
-
-Highlights:
-- uses `facebook/esm2_t33_650M_UR50D`
-- optional embedding precomputation to `.pt`
-- train/dev split by cluster inside train set
-- final evaluation on full validation set
-- optional generative/top-k analysis
-
-Run (sampled train):
 ```bash
 python src/train_esm2_regressor.py \
-	--mode train_eval \
-	--train_csv data/processed/tsuboyama_processed_train_sampled.csv \
-	--val_csv data/processed/tsuboyama_processed_val_full.csv \
-	--out_dir results/esm2_650m \
-	--prepare_embeddings
+  --mode train_eval \
+  --train_csv data/processed/tsuboyama_processed_train_sampled.csv \
+  --val_csv data/processed/tsuboyama_processed_val_full.csv \
+  --out_dir results/esm2_650m \
+  --prepare_embeddings
 ```
 
-Run (full train):
+### Generative feasibility mapping (random single mutants)
+
 ```bash
-python src/train_esm2_regressor.py \
-	--mode train_eval \
-	--train_csv data/processed/tsuboyama_processed_train_full.csv \
-	--val_csv data/processed/tsuboyama_processed_val_full.csv \
-	--out_dir results/esm2_650m_train_full \
-	--train_embed_path data/processed/train_full_esm2_650m.pt \
-	--val_embed_path data/processed/val_full_esm2_650m.pt \
-	--prepare_embeddings
+python src/generate_random_single_mutant_mapping.py \
+  --wt_source_csv data/processed/tsuboyama_processed_val_full.csv \
+  --lookup_csv data/processed/tsuboyama_processed_train_full.csv \
+  --output_csv results/generative_eval/random_single_mutants_val_wt_mapped_to_train_full.csv \
+  --summary_json results/generative_eval/random_single_mutants_val_wt_mapped_to_train_full.summary.json \
+  --seed 42
 ```
 
-### D. ESM residue embeddings + graph heads (linear and attention)
-File: `src/train_esm_graph_models.py`
+### Optional bootstrap over multiple seeds
 
-Variants trained in one run:
-- `esm_linear_graphnet`: linear message passing on adjacent residues
-- `esm_attention_graph`: transformer-style attention blocks over residue embeddings
-
-Run:
 ```bash
-python src/train_esm_graph_models.py \
-	--train_csv data/processed/tsuboyama_processed_train_sampled.csv \
-	--val_csv data/processed/tsuboyama_processed_val_full.csv \
-	--out_dir results/esm_graph_60k \
-	--train_embed_path data/processed/train_sampled_esm2_650m_seq.pt \
-	--val_embed_path data/processed/val_full_esm2_650m_seq.pt \
-	--prepare_embeddings
+for s in $(seq 0 9); do
+  python src/generate_random_single_mutant_mapping.py \
+    --seed "$s" \
+    --output_csv "results/generative_eval/bootstrap_runs/random_single_mutants_seed_${s}.csv" \
+    --summary_json "results/generative_eval/bootstrap_runs/random_single_mutants_seed_${s}.summary.json"
+done
 ```
 
-### E. VAE prototype
-Prototype code is in `notebooks/VAE.ipynb`.
+## Current Limitations
 
-Current notebook implementation:
-- consumes ESM embedding `.pt` payloads
-- multi-task VAE with reconstruction + KL + property regression
-- latent optimization routine for stability-guided search
+- Current curated modeling scope is single substitutions.
+- The present VAE implementation is embedding-space and not yet a full sequence decoder.
+- Generative evaluation currently uses feasibility mapping against observed variants, not full wet-lab
+  validation.
 
-Note: this prototype is notebook-first and not yet packaged as a production CLI under `src/`.
 
-## 6) Reproducibility Notes
-
-- Most training scripts fix random seed (`42`) by default.
-- Train/dev split is cluster-stratified; validation is pre-generated in processed CSV files.
-- Metrics are logged as JSON under each experiment folder in `results/`.
-- Lint/format is configured through Ruff in `pyproject.toml`.
-
-## 7) Limitations and Active Directions
-
-Aligned with the final report and current code status:
-- Current primary training scope is single-point mutation curation.
-- OOD behavior is partially probed via held-out clusters; broader generalization remains open.
-- ESM-attention graph variant currently underperforms the linear graph variant in the present setup.
-- VAE work is currently notebook-based and not yet fully integrated into the `src/` training stack.
-- Generative evaluation is retrieval-oriented; sequence-native generation remains an active target.
-
-## 8) Citation
-
-If you use this repository, please cite the project report and the Tsuboyama et al. dataset paper.
-
----
-
-For manuscript context and experimental framing, see `Interim_Final_ProteinOrigami.pdf` on Quercus.
